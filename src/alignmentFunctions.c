@@ -252,7 +252,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
         //fprintf(out, "\n");
         writing_buffer_alignment[curr_pos_buffer++] = '\n';
         while(before_i < i){
-            if(reconstruct_X[before_i] == reconstruct_Y[before_j]){
+            if(reconstruct_X[before_i] != '-' && reconstruct_Y[before_j] != '-' && reconstruct_X[before_i] == reconstruct_Y[before_j]){
                 //fprintf(out, "*");
                 writing_buffer_alignment[curr_pos_buffer++] = '*';
                 ba->identities++;
