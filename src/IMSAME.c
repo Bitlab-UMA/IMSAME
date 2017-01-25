@@ -24,7 +24,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 #define STARTING_SEQS 1000
-#define PIECE_OF_DB_REALLOC 64000000 //half a gigabyte if divided by 8 bytes
+#define PIECE_OF_DB_REALLOC 3200000 //half a gigabyte if divided by 8 bytes
 
 
 void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity);
@@ -83,17 +83,17 @@ int main(int argc, char ** av){
     for(i=0;i<n_threads;i++){
 	
     	table[i] = (struct cell **) malloc(MAX_READ_SIZE * sizeof(struct cell *));
-	for(j=0;j<MAX_READ_SIZE;j++){
-		table[i][j] = (struct cell *) malloc(MAX_READ_SIZE*sizeof(struct cell));
-		if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
-	}
+	    for(j=0;j<MAX_READ_SIZE;j++){
+		    table[i][j] = (struct cell *) malloc(MAX_READ_SIZE*sizeof(struct cell));
+		    if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
+	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
     	my_x[i] = (unsigned char *) malloc(MAX_READ_SIZE * sizeof(unsigned char));
     	my_y[i] = (unsigned char *) malloc(MAX_READ_SIZE * sizeof(unsigned char));
-    	reconstruct_X[i] = (char *) malloc(MAX_READ_SIZE * sizeof(char));
-    	reconstruct_Y[i] = (char *) malloc(MAX_READ_SIZE * sizeof(char));
-	writing_buffer_alignment[i] = (char *) malloc(MAX_READ_SIZE*MAX_READ_SIZE*sizeof(char));
-	if(table[i] == NULL || mc[i] == NULL || my_x[i] == NULL || my_y[i] == NULL || reconstruct_X[i] == NULL || reconstruct_Y[i] == NULL || writing_buffer_alignment[i] == NULL) terror("Could not allocate buffer for alignment output");
+    	reconstruct_X[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
+    	reconstruct_Y[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
+	    writing_buffer_alignment[i] = (char *) malloc(MAX_READ_SIZE*MAX_READ_SIZE*sizeof(char));
+	    if(table[i] == NULL || mc[i] == NULL || my_x[i] == NULL || my_y[i] == NULL || reconstruct_X[i] == NULL || reconstruct_Y[i] == NULL || writing_buffer_alignment[i] == NULL) terror("Could not allocate buffer for alignment output");
     }
 
 
@@ -488,15 +488,15 @@ int main(int argc, char ** av){
     for(i=0;i<n_threads;i++){
 
         for(j=0;j<MAX_READ_SIZE;j++){
-		free(table[i][j]);
+		    free(table[i][j]);
         }
-	free(table[i]);
-	free(mc[i]);
-	free(reconstruct_X[i]);
-	free(reconstruct_Y[i]);
-	free(my_x[i]);	
-	free(my_y[i]);
-	free(writing_buffer_alignment[i]);
+        free(table[i]);
+        free(mc[i]);
+        free(reconstruct_X[i]);
+        free(reconstruct_Y[i]);
+        free(my_x[i]);	
+        free(my_y[i]);
+        free(writing_buffer_alignment[i]);
     }
     free(table);
     free(mc);
