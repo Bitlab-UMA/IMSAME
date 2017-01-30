@@ -310,6 +310,7 @@ int main(int argc, char ** av){
     data_query.start_pos = query_positions;
     data_query.total_len = 0;
     data_query.n_seqs = 0;
+    n_realloc_database = 1;
     
     
     //Print info
