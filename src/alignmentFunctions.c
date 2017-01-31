@@ -64,7 +64,9 @@ typedef struct {
     qf.x_start = qf.y_start = qf.t_len = 0;
     qf.e_value = LDBL_MAX;
 
-    //char get_from_db[500], get_from_query[500];
+    
+    Point p0, p1, p2, p3; //Points for NW anchored
+    p0.x = 0; p0.y = 0;
     
     char c;
     uint64_t curr_read = hta->from, curr_db_seq, xlen, ylen;
@@ -155,8 +157,15 @@ typedef struct {
                     if(xlen > MAX_READ_SIZE || ylen > MAX_READ_SIZE) terror("Read size reached for gapped alignment.");
                     //fprintf(stdout, "R0 %"PRIu64", %"PRIu64"\n", curr_db_seq, curr_read);
                     
+                    p1.x = qf.x_start;
+                    p1.y = qf.y_start;
+                    p2.x = p1.x + qf.t_len;
+                    p2.y = p1.y + qf.t_len;
+                    p3.x = xlen;
+                    p3.y = ylen;
+                    uint64_t * cell_path_y = calculate_y_cell_path(p0, p1, p2, p3);
 
-                    build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen);
+                    build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y);
                     
 
                     //If is good
@@ -207,15 +216,9 @@ typedef struct {
 
 }
 
-void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen){
+void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, uint64_t * cell_path_y){
 
-    //strncpy(get_from_db, &hta->database->sequences[qf.x_start], qf.t_len);
-    //strncpy(get_from_query, &hta->query->sequences[qf.y_start], qf.t_len);
-    //printf("%s\n%s\n%Le\t%d\n-------------------\n", get_from_db, get_from_query, qf.e_value, (int)(100*qf.coverage));
-    //printf("%"PRIu64", %"PRIu64", %"PRIu64"\n", qf.x_start, qf.y_start, qf.t_len);
 
-    //printf("Hit comes from %"PRIu64", %"PRIu64"\n", pos_of_hit, curr_pos);
- 
     //Do some printing of alignments here
     uint64_t maximum_len, i, j, curr_pos_buffer;
 
@@ -225,7 +228,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
 
     //getchar();
 
-    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0);
+    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0, cell_path_y);
     backtrackingNW(my_x, 0, xlen, my_y, 0, ylen, table, reconstruct_X, reconstruct_Y, &best_cell, &i, &j, ba);
     uint64_t offset = 0, before_i = 0, before_j = 0;
     i++; j++;
@@ -386,14 +389,98 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 
 }
 
-struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show){
+uint64_t * calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3){
     
+    //Calculate lines between points
+    uint64_t * y_points = (uint64_t *) malloc(p3.x * sizeof(uint64_t));
+    uint64_t i;
+
+    /*
+    printf("Built on\n");
+    printf("(%"PRIu64", %"PRIu64")\n", p0.x, p0.y);
+    printf("(%"PRIu64", %"PRIu64")\n", p1.x, p1.y);
+    printf("(%"PRIu64", %"PRIu64")\n", p2.x, p2.y);
+    printf("(%"PRIu64", %"PRIu64")\n", p3.x, p3.y);
+    */
+
+    long double deltax, deltay, deltaerr, error;
+    uint64_t y;
+
+    //P0 to P1
+    deltax = p1.x - p0.x;
+    deltay = p1.y - p0.y;
+    if(deltax != 0) deltaerr = fabsl(deltay/deltax); else deltaerr = 0;
+    //printf("Deltas  x: %Le y: %Le Error: %Le\n", deltax, deltay, deltaerr);
+    error = deltaerr - 0.5;
+    y = p0.y;
+
+    for(i=p0.x;i<p1.x;i++){
+        y_points[i] = y;
+        error = error + deltaerr;
+        if(error >= 0.5){
+            y++;
+            error = error - 1;
+        }
+    }
+
+    //P1 to P2
+
+    deltax = p2.x - p1.x;
+    deltay = p2.y - p1.y;
+    if(deltax != 0) deltaerr = fabsl(deltay/deltax); else deltaerr = 0;
+    //printf("Deltas  x: %Le y: %Le Error: %Le\n", deltax, deltay, deltaerr);
+    error = deltaerr - 0.5;
+    y = p1.y;
+
+    for(i=p1.x;i<p2.x;i++){
+        y_points[i] = y;
+        error = error + deltaerr;
+        if(error >= 0.5){
+            y++;
+            error = error - 1;
+        }
+    }
+    
+    //P2 to P3
+
+    deltax = p3.x - p2.x;
+    deltay = p3.y - p2.y;
+    if(deltax != 0) deltaerr = fabsl(deltay/deltax); else deltaerr = 0;
+    //printf("Deltas  x: %Le y: %Le Error: %Le\n", deltax, deltay, deltaerr);
+    error = deltaerr - 0.5;
+    y = p2.y;
+
+    for(i=p2.x;i<p3.x;i++){
+        y_points[i] = y;
+        error = error + deltaerr;
+        if(error >= 0.5){
+            y++;
+            error = error - 1;
+        }
+    }
+
+    /*
+    for(i=0;i<p3.x;i++){
+        printf("%"PRIu64" -> ", y_points[i]);
+        if(i % 50 == 0) getchar();
+    }
+    */
+
+    return y_points;
+}
+
+struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, uint64_t * cell_path_y){
+    
+
     uint64_t i,j;
     int64_t scoreDiagonal,scoreLeft,scoreRight,score;
 
     struct positioned_cell bc;
     bc.score = INT64_MIN;
     
+    //The window size will be a +-15% of the square root of the product of lengths
+    uint64_t window_size = (uint64_t) (0.15 * sqrtl((long double) Xend * (long double) Yend));
+    //printf("Using window size: %"PRIu64"\n", window_size);
     
     struct positioned_cell mf;
     mf.score = INT64_MIN;

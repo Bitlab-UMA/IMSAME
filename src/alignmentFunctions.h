@@ -54,7 +54,7 @@ void * computeAlignmentsByThread(void * a);
 /*
     Performs NW and backtracking to recover alignment
 */
-void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen);
+void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, uint64_t * cell_path_y);
 
 /*
     Compute the alignment and evalue of a given hit
@@ -63,9 +63,14 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
 void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_database, uint64_t pos_query, uint64_t curr_read, uint64_t curr_db_seq, Quickfrag * qf);
 
 /*
+    Computes the cell path for the y points given incremental x
+    Only add +- window size to each to know which path to go through
+*/
+uint64_t * calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3);
+/*
     Calculates NW table with two rows and stores a cellpath of scores, identities, gaps and starting and ending positions
 */
-struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show);
+struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, uint64_t * cell_path_y);
 
 /*
     Computes the alignment given a NW table

@@ -3,13 +3,11 @@
 
 #include <inttypes.h>
 
-#pragma pack(push, 1)
-
 //Structs required for the dotplot workflow
 #define MAXLID 200
 //#define READBUF 2000000000 //2 GB
 #define READBUF 50000000 //50MB
-#define INITSEQS 300000 //Number of starting sequences (in database)
+#define INITSEQS 3000 //Number of starting sequences (in database)
 #define POINT 4
 
 #define FIXED_K 12
@@ -52,6 +50,12 @@ typedef struct quickfrag{
     long double coverage;
     long double e_value;
 } Quickfrag;
+
+typedef struct point{
+    uint64_t x;
+    uint64_t y;
+} Point;
+
 
 
 struct cell{
