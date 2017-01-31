@@ -62,6 +62,9 @@ typedef struct {
     qf.x_start = qf.y_start = qf.t_len = 0;
     qf.e_value = LDBL_MAX;
 
+    int64_t * cell_path_y = (int64_t *) malloc(MAX_READ_SIZE*sizeof(int64_t));
+    if(cell_path_y == NULL) terror("Could not allocate cell paths");
+
     
     Point p0, p1, p2, p3; //Points for NW anchored
     p0.x = 0; p0.y = 0;
@@ -85,8 +88,8 @@ typedef struct {
     c = (char) hta->query->sequences[curr_pos];
 
     uint64_t up_to;
-    fprintf(stdout, "Going from %"PRIu64" to %"PRIu64"\n", hta->from, hta->to);
-    fflush(stdout);
+    //fprintf(stdout, "Going from %"PRIu64" to %"PRIu64"\n", hta->from, hta->to);
+    //fflush(stdout);
 
     while(curr_read < hta->to && curr_pos < hta->query->total_len){
 
@@ -155,13 +158,13 @@ typedef struct {
                     if(xlen > MAX_READ_SIZE || ylen > MAX_READ_SIZE) terror("Read size reached for gapped alignment.");
                     //fprintf(stdout, "R0 %"PRIu64", %"PRIu64"\n", curr_db_seq, curr_read);
                     
-                    p1.x = qf.x_start;
-                    p1.y = qf.y_start;
+                    p1.x = qf.x_start - hta->database->start_pos[curr_db_seq];
+                    p1.y = qf.y_start - hta->query->start_pos[curr_read];
                     p2.x = p1.x + qf.t_len;
                     p2.y = p1.y + qf.t_len;
                     p3.x = xlen;
                     p3.y = ylen;
-                    int64_t * cell_path_y = calculate_y_cell_path(p0, p1, p2, p3);
+                    calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
                     build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y);
                     
 
@@ -208,6 +211,7 @@ typedef struct {
 
     }
     
+    free(cell_path_y);
 
     return NULL;
 
@@ -385,10 +389,9 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 
 }
 
-int64_t * calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3){
+void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * y_points){
     
     //Calculate lines between points
-    int64_t * y_points = (int64_t *) malloc(p3.x * sizeof(int64_t));
     uint64_t i;
 
     /*
@@ -462,7 +465,6 @@ int64_t * calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3){
     }
     */
 
-    return y_points;
 }
 
 struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y){
@@ -516,7 +518,7 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
         for(j=MAX(1,(cell_path_y[i] - window_size));j<MIN(Yend,(cell_path_y[i] + window_size));j++){
             //printf("Doing on j: (%"PRIu64",%"PRIu64"\n", i,j);
             //Check if max in row has changed
-            if(j > MAX(0, cell_path_y[i-1] - window_size +1) && mf.score <= table[i-1][j-2].score){
+            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && mf.score <= table[i][j-2].score){
                 mf.score = table[i-1][j-2].score;
                 mf.xpos = i-1;
                 mf.ypos = j-2;
@@ -539,9 +541,9 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
 
             if(i>1){
                 scoreRight = mc[j-1].score + iGap + (i - (mc[j-1].xpos+1))*eGap + score;
-                }else{
-                    scoreRight = INT64_MIN;
-                }
+            }else{
+                scoreRight = INT64_MIN;
+            }
             
             //Choose maximum
             //printf("Score DIAG: %"PRId64"; LEFT: %"PRId64"; RIGHT: %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
@@ -567,7 +569,7 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
             //check if column max has changed
             //New condition: check if you filled i-2, j-1
 
-            if(i > 1 && ((cell_path_y[i-2]+window_size)) >= j-1 && table[i-2][j-1].score > mc[j-1].score){
+            if(i > 1 && j > 1 && ((uint64_t)(cell_path_y[i-2] + window_size)) >= j-1 && table[i-2][j-1].score > mc[j-1].score){
                 mc[j-1].score = table[i-2][j-1].score;
                 mc[j-1].xpos = i-2;
                 mc[j-1].ypos = j-1;

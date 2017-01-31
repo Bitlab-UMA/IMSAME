@@ -325,13 +325,11 @@ int main(int argc, char ** av){
             word_size = 0;
             
             if(pos_in_query == READBUF*n_realloc_query){
-                printf("Reallocating\n"); 
                 n_realloc_query++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_query*sizeof(unsigned char));
                 if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
             }
 
             if(data_query.n_seqs == INITSEQS*n_seqs_query_realloc){
-                printf("Reallocating\n");
                 n_seqs_query_realloc++; data_query.start_pos =  (uint64_t *) realloc(data_query.start_pos, INITSEQS*n_seqs_query_realloc*sizeof(uint64_t));
             }
 

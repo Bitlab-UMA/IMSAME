@@ -66,7 +66,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
     Computes the cell path for the y points given incremental x
     Only add +- window size to each to know which path to go through
 */
-int64_t * calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3);
+void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * cell_path_y);
 /*
     Calculates NW table with two rows and stores a cellpath of scores, identities, gaps and starting and ending positions
 */
