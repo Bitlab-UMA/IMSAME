@@ -356,7 +356,6 @@ int main(int argc, char ** av){
                     }
             
                     if(pos_in_query == READBUF*n_realloc_database){ 
-                        printf("Reallocating\n");
                         n_realloc_database++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
                         if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                     }
