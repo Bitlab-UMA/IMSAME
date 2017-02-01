@@ -165,7 +165,7 @@ typedef struct {
                     p3.x = xlen;
                     p3.y = ylen;
                     calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
-                    build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y);
+                    build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                     
 
                     //If is good
@@ -217,7 +217,7 @@ typedef struct {
 
 }
 
-void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, int64_t * cell_path_y){
+void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, int64_t * cell_path_y, long double * window){
 
 
     //Do some printing of alignments here
@@ -228,7 +228,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
     memcpy(my_y, &hta->query->sequences[hta->query->start_pos[curr_read]], ylen);
 
 
-    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0, cell_path_y);
+    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0, cell_path_y, window);
     backtrackingNW(my_x, 0, xlen, my_y, 0, ylen, table, reconstruct_X, reconstruct_Y, &best_cell, &i, &j, ba);
     uint64_t offset = 0, before_i = 0, before_j = 0;
     i++; j++;
@@ -236,6 +236,8 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
     while(i <= maximum_len && j <= maximum_len){
         offset = 0;
         before_i = i;
+        writing_buffer_alignment[curr_pos_buffer++] = 'D';
+        writing_buffer_alignment[curr_pos_buffer++] = '\t';
         while(offset < ALIGN_LEN && i <= maximum_len){
             //fprintf(out, "%c", reconstruct_X[i]);
             writing_buffer_alignment[curr_pos_buffer++] = (char) reconstruct_X[i];
@@ -243,9 +245,14 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
             offset++;
         }
         //fprintf(out, "\n");
+        
         writing_buffer_alignment[curr_pos_buffer++] = '\n';
         offset = 0;
         before_j = j;
+
+        writing_buffer_alignment[curr_pos_buffer++] = 'Q';
+        writing_buffer_alignment[curr_pos_buffer++] = '\t';
+
         while(offset < ALIGN_LEN && j <= maximum_len){
             //fprintf(out, "%c", reconstruct_Y[j]);
             writing_buffer_alignment[curr_pos_buffer++] = (char) reconstruct_Y[j];
@@ -254,6 +261,8 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
         }
         //fprintf(out, "\n");
         writing_buffer_alignment[curr_pos_buffer++] = '\n';
+        writing_buffer_alignment[curr_pos_buffer++] = ' ';
+        writing_buffer_alignment[curr_pos_buffer++] = '\t';
         while(before_i < i){
             if(reconstruct_X[before_i] != '-' && reconstruct_Y[before_j] != '-' && reconstruct_X[before_i] == reconstruct_Y[before_j]){
                 //fprintf(out, "*");
@@ -467,7 +476,7 @@ void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * y_p
 
 }
 
-struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y){
+struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y, long double * window){
     
 
     uint64_t i,j;
@@ -477,7 +486,7 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
     bc.score = INT64_MIN;
     
     //The window size will be a +-15% of the square root of the product of lengths
-    int64_t window_size = (uint64_t) (0.15 * sqrtl((long double) Xend * (long double) Yend));
+    int64_t window_size = (uint64_t) (*window * sqrtl((long double) Xend * (long double) Yend));
     
     struct positioned_cell mf;
     mf.score = INT64_MIN;

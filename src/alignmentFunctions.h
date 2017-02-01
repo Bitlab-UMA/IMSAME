@@ -17,6 +17,7 @@ typedef struct {
     long double min_e_value;    //Minimum evalue to accept read
     long double min_coverage;    //Minimum coverage percentage to accept read
     long double min_identity;    //Minimum identity percentage to accept read
+    long double window;         //Percentage of window that will be explored (+-)
     FILE * out; //File to write alignments out
     int igap;
     int egap;
@@ -54,7 +55,7 @@ void * computeAlignmentsByThread(void * a);
 /*
     Performs NW and backtracking to recover alignment
 */
-void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, int64_t * cell_path_y);
+void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, unsigned char * my_x, unsigned char * my_y, struct cell ** table, struct positioned_cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen, int64_t * cell_path_y, long double * window);
 
 /*
     Compute the alignment and evalue of a given hit
@@ -70,7 +71,7 @@ void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * cel
 /*
     Calculates NW table with two rows and stores a cellpath of scores, identities, gaps and starting and ending positions
 */
-struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y);
+struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y, long double * window);
 
 /*
     Computes the alignment given a NW table

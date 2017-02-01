@@ -27,7 +27,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 #define PIECE_OF_DB_REALLOC 3200000 //half a gigabyte if divided by 8 bytes
 
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity);
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window);
 
 int VERBOSE_ACTIVE = 0;
 
@@ -43,11 +43,11 @@ int main(int argc, char ** av){
     FILE * query = NULL, * database = NULL, * out_database = NULL;
     long double minevalue = 1/powl(10, 20); //Default 1 * 10^-20
     
-    long double mincoverage = 0.5, minidentity = 0.5; //Default
+    long double mincoverage = 0.5, minidentity = 0.5, window = 0.15; //Default
     int igap = -5, egap = -2;
 
     uint64_t n_threads = 4;
-    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity);
+    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window);
     
     uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
@@ -437,7 +437,7 @@ int main(int argc, char ** av){
         hta[i].out = out_database;
         hta[i].igap = igap;
         hta[i].egap = egap;
-
+        hta[i].window = window;
         hta[i].mc = mc[i];
         hta[i].table = table[i];
         hta[i].reconstruct_X = reconstruct_X[i];
@@ -514,7 +514,7 @@ int main(int argc, char ** av){
     return 0;
 }
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity){
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window){
 
     int pNum = 0;
     while(pNum < argc){
@@ -529,6 +529,7 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           -identity   [Double:    0<identity<=1 (default: 0.5)\n");
             fprintf(stdout, "           -igap       [Integer:   (default: 5)\n");
             fprintf(stdout, "           -egap       [Integer:   (default: 2)\n");
+            fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)");
             fprintf(stdout, "           -out        [File path]\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");
             fprintf(stdout, "           --help      Shows help for program usage\n");
@@ -549,6 +550,10 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
         if(strcmp(av[pNum], "-evalue") == 0){
             *minevalue = (long double) atof(av[pNum+1]);
             if(*minevalue < 0) terror("Min-e-value must be larger than zero");
+        }
+        if(strcmp(av[pNum], "-window") == 0){
+            *window = (long double) atof(av[pNum+1]);
+            if(*window <= 0 || *window > 0.5) terror("Window percentage size must lie between 0<window<=0.5");
         }
         if(strcmp(av[pNum], "-coverage") == 0){
             *mincoverage = (long double) atof(av[pNum+1]);
