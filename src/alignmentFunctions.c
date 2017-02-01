@@ -12,6 +12,10 @@
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
 
+inline int64_t compare_letters(unsigned char a, unsigned char b){
+    if(a != (unsigned char) 'N') return (a == b) ? POINT : -POINT;
+    return -POINT;
+}
 
 llpos * getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
 
@@ -332,7 +336,8 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
         
         if(score_right > 0 && curr_pos_db < database->total_len && curr_pos_qy < query->total_len){
             if(curr_pos_db  > read_x_end ||  curr_pos_qy > read_y_end) break;
-            if(database->sequences[curr_pos_db] == query->sequences[curr_pos_qy]){ score_right+=POINT; idents++; }else{ score_right-=POINT;}
+            //if(database->sequences[curr_pos_db] == query->sequences[curr_pos_qy]){ score_right+=POINT; idents++; }else{ score_right-=POINT;}
+            if(compare_letters(database->sequences[curr_pos_db], query->sequences[curr_pos_qy]) == POINT){ score_right+=POINT; idents++; }else{ score_right-=POINT;}
             if(high_right <= score_right){
                 final_end_x = curr_pos_db;
                 high_right = score_right;
@@ -355,7 +360,8 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
         
         if(score_left > 0 && curr_pos_db >= 0 && curr_pos_qy >= 0){
             if(curr_pos_db < read_x_start || curr_pos_qy < read_y_start ) break;
-            if(database->sequences[curr_pos_db] == query->sequences[curr_pos_qy]){ score_left+=POINT; idents++; }else{ score_left-=POINT;}
+            //if(database->sequences[curr_pos_db] == query->sequences[curr_pos_qy]){ score_left+=POINT; idents++; }else{ score_left-=POINT;}
+            if(compare_letters(database->sequences[curr_pos_db], query->sequences[curr_pos_qy]) == POINT){ score_left+=POINT; idents++; }else{ score_left-=POINT;}
             if(high_left <= score_left){
                 final_start_x = curr_pos_db;
                 final_start_y = curr_pos_qy;
@@ -496,7 +502,8 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
     //printf("..0%%");
 
     for(i=0;i<Yend;i++){
-        table[0][i].score = (X[0] == Y[i]) ? POINT : -POINT;
+        //table[0][i].score = (X[0] == Y[i]) ? POINT : -POINT;
+        table[0][i].score = compare_letters(X[0], Y[i]);
         //table[Xstart][i].xfrom = Xstart;
         //table[Xstart][i].yfrom = i;
         //Set every column max
@@ -515,7 +522,8 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
     for(i=1;i<Xend;i++){
         //Fill first rowcell
 
-        table[i][0].score = (X[i] == Y[0]) ? POINT : -POINT;
+        //table[i][0].score = (X[i] == Y[0]) ? POINT : -POINT;
+        table[i][0].score = compare_letters(X[i], Y[0]);
         mf.score = table[i][0].score;
         mf.xpos = i;
         mf.ypos = 0;
@@ -533,7 +541,8 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
                 mf.ypos = j-2;
             }
             
-            score = (X[i] == Y[j]) ? POINT : -POINT;
+            //score = (X[i] == Y[j]) ? POINT : -POINT;
+            score = compare_letters(X[i], Y[j]);
 
             //Precondition: Upper row needs to reach up to diagonal
             if((cell_path_y[i-1]+window_size) >= j-1){

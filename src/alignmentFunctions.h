@@ -31,7 +31,10 @@ typedef struct {
 } HashTableArgs;
 
 
-
+/*
+    Nucleotides matching function
+*/
+inline int64_t compare_letters(unsigned char a, unsigned char b);
 
 /**
  * Initialize the memory pool to later retrieve individual memory addresses for llpos

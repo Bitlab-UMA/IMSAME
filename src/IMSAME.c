@@ -226,8 +226,16 @@ int main(int argc, char ** av){
                     }
 
 
-                }else{
-                    if(c != '\n') word_size = 0;
+                }else{ //It can be anything (including N, Y, X ...)
+
+                    if(c != '\n'){
+                        word_size = 0;
+                        data_database.sequences[pos_in_database++] = (unsigned char) 'N'; //Convert to N
+                        if(pos_in_database == READBUF*n_realloc_database){ 
+                            n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                        if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
+                        }
+                    } 
                 }
                 if(word_size == FIXED_K){
                     //write to hash table
@@ -358,7 +366,14 @@ int main(int argc, char ** av){
                         if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                     }
                 }else{
-                    word_size = 0;
+                    if(c != '\n'){
+                        word_size = 0;
+                        data_query.sequences[pos_in_query++] = (unsigned char) 'N'; //Convert to N
+                        if(pos_in_query == READBUF*n_realloc_database){ 
+                            n_realloc_database++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                            if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
+                        }
+                    }
                 }
             }
         }else{
