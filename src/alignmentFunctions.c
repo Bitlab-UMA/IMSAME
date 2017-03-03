@@ -57,6 +57,12 @@ typedef struct {
 */
 
     HashTableArgs * hta = (HashTableArgs *) a;
+
+    get_task_from_queue(hta->queue_head, hta->lock);
+
+    printf("Can be anytime\n");
+    exit(-1);
+
     unsigned char char_converter[91];
     char_converter[(unsigned char)'A'] = 0;
     char_converter[(unsigned char)'C'] = 1;
@@ -66,6 +72,8 @@ typedef struct {
     qf.x_start = qf.y_start = qf.t_len = 0;
     qf.e_value = LDBL_MAX;
 
+
+
     int64_t * cell_path_y = (int64_t *) malloc(MAX_READ_SIZE*sizeof(int64_t));
     if(cell_path_y == NULL) terror("Could not allocate cell paths");
 
@@ -74,6 +82,9 @@ typedef struct {
     p0.x = 0; p0.y = 0;
     
     char c;
+
+    //Get next operation in queue
+
     uint64_t curr_read = hta->from, curr_db_seq, xlen, ylen;
     uint64_t crrSeqL = 0, pos_of_hit = 0;
     unsigned char curr_kmer[FIXED_K], b_aux[FIXED_K];

@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <ctype.h>
 #include <string.h>
+#include <pthread.h>
 #include <math.h>
 #include "structs.h"
 
@@ -25,28 +26,46 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f) {
 void generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels){
     uint64_t i, j, k;
     uint64_t reads_per_thread;
-    uint64_t current_piece = t_reads;
-    uint64_t from, to;
+    uint64_t pieces = t_reads/levels;
+    uint64_t from, to, t_queues = 0, current_queue = 0;
+    for(i=0;i<levels;i++) t_queues += ((i+1)*n_threads);
+    Queue * queues = (Queue *) malloc(t_queues * sizeof(Queue));
+    queue_head->head = &queues[0];
     
     for(i=0;i<levels;i++){
 
-        current_piece = t_reads/(powl(2, i+1));
-        printf("current_piece: %"PRIu64"\n", current_piece);
+        reads_per_thread = (uint64_t) (floorl((long double) pieces / (long double) ((i+1)*n_threads)));
         
-        /*
-        reads_per_thread = (uint64_t) (floorl((long double) current_piece / (long double) n_threads));
-        for(j=0;j<n_threads;j++){
 
+        for(j=0;j<(i+1)*n_threads;j++){
+            from = j * reads_per_thread + (pieces*i);
+            to = (j + 1) * reads_per_thread + (pieces*i);
             
-            from = j * reads_per_thread;
-            to = (j + 1) * reads_per_thread;
+            if(i==levels - 1 && j == (i+1)*n_threads - 1){
+                to = t_reads;
+                queues[current_queue].next = NULL;
+            }else{
+                queues[current_queue].next = &queues[current_queue+1];
+            }
 
-            if(j==n_threads-1) to = t_reads;
-
-            //Add to queue
+            queues[current_queue].r1 = from;
+            queues[current_queue].r2 = to;
+            current_queue++;
+            //printf("current_piece: %"PRIu64"-%"PRIu64"\n", from, to);
 
         }
-        */
+
     }
+    //printf("TREADS was %"PRIu64"\n", t_reads);    
+}
+
+Queue * get_task_from_queue(Head * queue_head, pthread_mutex_t * lock){
+    pthread_mutex_lock(lock);
     
+    printf("Mutex was locked\n");
+    printf("Mutex was UN-locked\n");
+
+    pthread_mutex_unlock(lock);
+
+    return NULL;
 }

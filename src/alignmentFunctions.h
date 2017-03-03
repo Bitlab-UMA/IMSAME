@@ -29,6 +29,7 @@ typedef struct {
     unsigned char * my_x;
     unsigned char * my_y;
     Head * queue_head;  //To tell where the queue starts after modifications
+    pthread_mutex_t * lock;
 } HashTableArgs;
 
 

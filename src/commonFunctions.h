@@ -17,4 +17,9 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f);
 */
 void generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels);
 
+/*
+    Gets the next task to do when a pthread is free
+*/
+Queue * get_task_from_queue(Head * queue_head, pthread_mutex_t * lock);
+
 #endif /* COMMON_FUNCTIONS_H */

@@ -69,6 +69,8 @@ int main(int argc, char ** av){
     HashTableArgs * hta = (HashTableArgs *) malloc(n_threads*sizeof(HashTableArgs));
     if(hta == NULL) terror("Could not allocate arguments for hash table");
     
+    pthread_mutex_t lock; //The mutex to lock the queue
+    if (pthread_mutex_init(&lock, NULL) != 0) terror("Could not init mutex");
 
     unsigned char ** my_x = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
     unsigned char ** my_y = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
@@ -342,7 +344,7 @@ int main(int argc, char ** av){
             }
 
 
-            while(c != '\n') c = buffered_fgetc(temp_seq_buffer, &idx, &r, query);  //Skip ID
+            while(c != '\n'){ c = buffered_fgetc(temp_seq_buffer, &idx, &r, query); } //Skip ID
                 
 
             while(c != '>' && (!feof(query) || (feof(query) && idx < r))){ //Until next id
@@ -422,9 +424,17 @@ int main(int argc, char ** av){
         
     Head queue_head;
     generate_queue(&queue_head, data_query.n_seqs, n_threads, 3);
-    exit(-1);
 
-    reads_per_thread = (uint64_t) (floorl((long double) data_query.n_seqs / (long double) n_threads));
+    /*
+    Queue * traverse = queue_head.head;
+    while(traverse != NULL){
+        printf("current_piece: %"PRIu64"-%"PRIu64"\n", traverse->r1, traverse->r2);
+        traverse = traverse->next;
+    }
+    */
+
+
+    //reads_per_thread = (uint64_t) (floorl((long double) data_query.n_seqs / (long double) n_threads));
     
     fprintf(stdout, "[INFO] Computing alignments.\n");
 
@@ -438,13 +448,13 @@ int main(int argc, char ** av){
         fflush(stdout);
     }
     */
-
+    
 
     for(i=0;i<n_threads;i++){
         hta[i].database = &data_database;
         hta[i].query = &data_query;
-        hta[i].from = i * reads_per_thread;
-        hta[i].to = (i + 1) * reads_per_thread;
+        //hta[i].from = i * reads_per_thread;
+        //hta[i].to = (i + 1) * reads_per_thread;
         hta[i].container = ct;
         hta[i].accepted_query_reads = 0;
         hta[i].min_e_value = minevalue;
@@ -461,8 +471,10 @@ int main(int argc, char ** av){
         hta[i].writing_buffer_alignment = writing_buffer_alignment[i];
         hta[i].my_x = my_x[i];
         hta[i].my_y = my_y[i];
+        hta[i].queue_head = &queue_head;
+        hta[i].lock = &lock;
 
-        if(i==n_threads-1) hta[i].to = data_query.n_seqs;
+        //if(i==n_threads-1) hta[i].to = data_query.n_seqs;
 
         if( 0 != (error = pthread_create(&threads[i], NULL, computeAlignmentsByThread, (void *) (&hta[i])) )){
             fprintf(stdout, "Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
@@ -499,6 +511,7 @@ int main(int argc, char ** av){
     free(threads);
     free(hta);
 
+
     for(i=0;i<n_threads;i++){
 
         for(j=0;j<MAX_READ_SIZE;j++){
@@ -520,7 +533,7 @@ int main(int argc, char ** av){
     free(my_x);
     free(writing_buffer_alignment);
 
-
+    pthread_mutex_destroy(&lock);
 
     for(i=0;i<=n_pools_used;i++){
         free(mp[i].base);
