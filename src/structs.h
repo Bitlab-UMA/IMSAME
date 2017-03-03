@@ -77,5 +77,15 @@ typedef struct{
     uint64_t egaps;
 } BasicAlignment;
 
+typedef struct queue{
+    uint64_t r1; //reads region
+    uint64_t r2;
+    struct queue * next;
+} Queue;
+
+typedef struct{
+    Queue * head;
+} Head;
+
 
 #endif

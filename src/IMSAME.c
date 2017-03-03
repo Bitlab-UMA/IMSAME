@@ -420,8 +420,9 @@ int main(int argc, char ** av){
 
     begin = clock();
         
-    
-
+    Head queue_head;
+    generate_queue(&queue_head, data_query.n_seqs, n_threads, 3);
+    exit(-1);
 
     reads_per_thread = (uint64_t) (floorl((long double) data_query.n_seqs / (long double) n_threads));
     

@@ -28,6 +28,7 @@ typedef struct {
     char * writing_buffer_alignment;
     unsigned char * my_x;
     unsigned char * my_y;
+    Head * queue_head;  //To tell where the queue starts after modifications
 } HashTableArgs;
 
 
