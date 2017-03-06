@@ -8,10 +8,10 @@ all: IMSAME revcomp
 
 
 IMSAME: IMSAME.c
-	$(CC) $(CFLAGS) alignmentFunctions.c -lm commonFunctions.c IMSAME.c -lpthread -lm -o $(BIN)/IMSAME
+	$(CC) $(CFLAGS) alignmentFunctions.c -lm commonFunctions.c -lm IMSAME.c -lpthread -lm -o $(BIN)/IMSAME
 	
 revcomp: reverseComplement.c
-	$(CC) $(CFLAGS) commonFunctions.c reverseComplement.c -o $(BIN)/revComp
+	$(CC) $(CFLAGS) commonFunctions.c -lm reverseComplement.c -o $(BIN)/revComp
 
 
 clean:
