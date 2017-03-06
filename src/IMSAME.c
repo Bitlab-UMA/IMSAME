@@ -49,7 +49,7 @@ int main(int argc, char ** av){
     uint64_t n_threads = 4;
     init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window);
     
-    uint64_t reads_per_thread;
+    //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
 
     unsigned char char_converter[91];

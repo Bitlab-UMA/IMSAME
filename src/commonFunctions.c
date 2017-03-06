@@ -24,12 +24,13 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f) {
 }
 
 void generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels){
-    uint64_t i, j, k;
+    uint64_t i, j;
     uint64_t reads_per_thread;
     uint64_t pieces = t_reads/levels;
     uint64_t from, to, t_queues = 0, current_queue = 0;
     for(i=0;i<levels;i++) t_queues += ((i+1)*n_threads);
     Queue * queues = (Queue *) malloc(t_queues * sizeof(Queue));
+    if(queues == NULL) terror("Could not allocate queue tasks");
     queue_head->head = &queues[0];
     
     for(i=0;i<levels;i++){
@@ -59,13 +60,19 @@ void generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uin
     //printf("TREADS was %"PRIu64"\n", t_reads);    
 }
 
+void print_queue(Queue * q){
+    fprintf(stdout, "Task: %"PRIu64"-%"PRIu64"\n", q->r1, q->r2);
+}
+
 Queue * get_task_from_queue(Head * queue_head, pthread_mutex_t * lock){
     pthread_mutex_lock(lock);
-    
-    printf("Mutex was locked\n");
-    printf("Mutex was UN-locked\n");
+
+    Queue * ptr = queue_head->head;
+    if(queue_head->head != NULL) queue_head->head = queue_head->head->next;
+    if(ptr != NULL){ printf("Taking "); print_queue(ptr); }
 
     pthread_mutex_unlock(lock);
 
-    return NULL;
+
+    return ptr;
 }
