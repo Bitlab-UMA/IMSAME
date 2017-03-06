@@ -15,7 +15,7 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f);
 /*
     Generates a queue of tasks for threads
 */
-void generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels);
+Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels);
 
 /*
     Prints a queue task

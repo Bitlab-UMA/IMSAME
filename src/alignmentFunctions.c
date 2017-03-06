@@ -122,6 +122,7 @@ typedef struct {
 
             if (curr_pos == up_to) { // Comment, empty or quality (+) line
                 crrSeqL = 0; // Reset buffered sequence length
+                if(NWaligned == 0) printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);
                 NWaligned = 0;
                 //fprintf(stdout, "Seq %"PRIu64" has %"PRIu64" hits and tried to align %"PRIu64" times\n", curr_read, n_hits, alignments_tried);
                 //fflush(stdout);

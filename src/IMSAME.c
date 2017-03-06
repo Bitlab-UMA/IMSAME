@@ -159,6 +159,7 @@ int main(int argc, char ** av){
     Container * ct = (Container *) calloc(1, sizeof(Container));
     if(ct == NULL) terror("Could not allocate container");
     
+    /*
     uint64_t w0,w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11;
     for(w0=0;w0<4;w0++){
         for(w1=0;w1<4;w1++){
@@ -185,7 +186,7 @@ int main(int argc, char ** av){
             }
         }
     }
-
+    */
 
 
 
@@ -423,7 +424,7 @@ int main(int argc, char ** av){
     begin = clock();
         
     Head queue_head;
-    generate_queue(&queue_head, data_query.n_seqs, n_threads, 3);
+    Queue * first_task = generate_queue(&queue_head, data_query.n_seqs, n_threads, 3);
 
     /*
     Queue * traverse = queue_head.head;
@@ -538,6 +539,9 @@ int main(int argc, char ** av){
     for(i=0;i<=n_pools_used;i++){
         free(mp[i].base);
     }
+    //Deallocate queue (its allocated as an array)
+    free(first_task);
+
     //free(mp);
     
     return 0;
