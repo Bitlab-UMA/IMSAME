@@ -122,7 +122,7 @@ typedef struct {
 
             if (curr_pos == up_to) { // Comment, empty or quality (+) line
                 crrSeqL = 0; // Reset buffered sequence length
-                if(NWaligned == 0) printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);
+                printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);
                 NWaligned = 0;
                 //fprintf(stdout, "Seq %"PRIu64" has %"PRIu64" hits and tried to align %"PRIu64" times\n", curr_read, n_hits, alignments_tried);
                 //fflush(stdout);
@@ -191,7 +191,8 @@ typedef struct {
                         p3.y = ylen;
                         calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
-                        
+                        printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
+                        printf("ident %"PRIu64"\n", ba.identities);
 
                         //If is good
                         if(((long double)ba.length/ylen) >= hta->min_coverage && ((long double)ba.identities/ba.length) >=  hta->min_identity){
@@ -261,15 +262,14 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
 
 
     //Do some printing of alignments here
-    uint64_t maximum_len, i, j, curr_pos_buffer;
+    uint64_t maximum_len, i, j, curr_pos_buffer, curr_window_size;
 
     maximum_len = 2*MAX(xlen,ylen);
     memcpy(my_x, &hta->database->sequences[hta->database->start_pos[curr_db_seq]], xlen);
     memcpy(my_y, &hta->query->sequences[hta->query->start_pos[curr_read]], ylen);
 
-
-    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0, cell_path_y, window);
-    backtrackingNW(my_x, 0, xlen, my_y, 0, ylen, table, reconstruct_X, reconstruct_Y, &best_cell, &i, &j, ba);
+    struct positioned_cell best_cell = NW(my_x, 0, xlen, my_y, 0, ylen, (int64_t) hta->igap, (int64_t) hta->egap, table, mc, 0, cell_path_y, window, &curr_window_size);
+    backtrackingNW(my_x, 0, xlen, my_y, 0, ylen, table, reconstruct_X, reconstruct_Y, &best_cell, &i, &j, ba, cell_path_y, curr_window_size);
     uint64_t offset = 0, before_i = 0, before_j = 0;
     i++; j++;
     curr_pos_buffer = 0;
@@ -279,7 +279,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
         writing_buffer_alignment[curr_pos_buffer++] = 'D';
         writing_buffer_alignment[curr_pos_buffer++] = '\t';
         while(offset < ALIGN_LEN && i <= maximum_len){
-            //fprintf(out, "%c", reconstruct_X[i]);
+            fprintf(stdout, "%c", reconstruct_X[i]);
             writing_buffer_alignment[curr_pos_buffer++] = (char) reconstruct_X[i];
             i++;
             offset++;
@@ -289,12 +289,14 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
         writing_buffer_alignment[curr_pos_buffer++] = '\n';
         offset = 0;
         before_j = j;
+        
+        fprintf(stdout, "\n");
 
         writing_buffer_alignment[curr_pos_buffer++] = 'Q';
         writing_buffer_alignment[curr_pos_buffer++] = '\t';
 
         while(offset < ALIGN_LEN && j <= maximum_len){
-            //fprintf(out, "%c", reconstruct_Y[j]);
+            fprintf(stdout, "%c", reconstruct_Y[j]);
             writing_buffer_alignment[curr_pos_buffer++] = (char) reconstruct_Y[j];
             j++;
             offset++;
@@ -518,17 +520,18 @@ void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * y_p
 
 }
 
-struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y, long double * window){
+struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, int64_t iGap, int64_t eGap, struct cell ** table, struct positioned_cell * mc, int show, int64_t * cell_path_y, long double * window, uint64_t * current_window_size){
     
 
-    uint64_t i,j;
-    int64_t scoreDiagonal,scoreLeft,scoreRight,score;
+    uint64_t i, j, j_prime;
+    int64_t scoreDiagonal,scoreLeft,scoreRight,score, delta_dif_1, delta_dif_2;
 
     struct positioned_cell bc;
     bc.score = INT64_MIN;
     
     //The window size will be a +-15% of the square root of the product of lengths
     int64_t window_size = (uint64_t) (*window * sqrtl((long double) Xend * (long double) Yend));
+    *current_window_size = (uint64_t) window_size;
     
     struct positioned_cell mf;
     mf.score = INT64_MIN;
@@ -539,40 +542,61 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
 
     for(i=0;i<Yend;i++){
         //table[0][i].score = (X[0] == Y[i]) ? POINT : -POINT;
-        table[0][i].score = compare_letters(X[0], Y[i]);
+        if(i < cell_path_y[0] + window_size) table[0][i].score = compare_letters(X[0], Y[i]);
         //table[Xstart][i].xfrom = Xstart;
         //table[Xstart][i].yfrom = i;
         //Set every column max
-        mc[i].score = table[0][i].score;
+        mc[i].score = compare_letters(X[0], Y[i]);
+        printf("%"PRId64"\t", mc[i].score);
         mc[i].xpos = 0;
         mc[i].ypos = i;
 
     }
     
+    printf("\n");
     //Set row max
     mf.score = table[0][0].score;
     mf.xpos = 0;
     mf.ypos = 0;
+    //Init j
+    j = MAX(1,(cell_path_y[1] - window_size));
 
     //Go through full matrix
     for(i=1;i<Xend;i++){
         //Fill first rowcell
 
+        //Conversion for the j-coordinate
+        j_prime = 0;
+
         //table[i][0].score = (X[i] == Y[0]) ? POINT : -POINT;
-        table[i][0].score = compare_letters(X[i], Y[0]);
-        mf.score = table[i][0].score;
+        if(cell_path_y[i] - window_size <= 0){
+            table[i][0].score = compare_letters(X[i], Y[0]);
+            mf.score = table[i][0].score;
+        }else{
+            mf.score = compare_letters(X[i], Y[0]);    
+        }
+
         mf.xpos = i;
         mf.ypos = 0;
+        printf("%"PRId64"\t", mf.score);
         
         //printf("Check on i: (%"PRIu64") from - to (%"PRIu64", %"PRIu64")\n", i, 0L, Xend);
         //printf("I will go from %"PRIu64" to %"PRIu64"\n",MAX(0,(cell_path_y[i] - window_size)), MIN(Yend,(cell_path_y[i] + window_size)));
         //getchar();
 
         for(j=MAX(1,(cell_path_y[i] - window_size));j<MIN(Yend,(cell_path_y[i] + window_size));j++){
-            //printf("Doing on j: (%"PRIu64",%"PRIu64"\n", i,j);
+            //printf("Doing on : (%"PRIu64",%"PRIu64" and jprime=%"PRIu64"\n", i,j,j_prime);
             //Check if max in row has changed
-            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && mf.score <= table[i][j-2].score){
-                mf.score = table[i-1][j-2].score;
+            //if(j > MAX(1, cell_path_y[i-1] - window_size +1) && mf.score <= table[i][j-2].score){
+
+            delta_dif_1 = cell_path_y[i] - cell_path_y[i-1]; //j-1
+            if(cell_path_y[i-1] - window_size < 0) delta_dif_1++;
+            delta_dif_2 = cell_path_y[i] - cell_path_y[i-2]; //j-2
+            if(cell_path_y[i-2] - window_size < 0) delta_dif_2++;
+
+            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && mf.score <= table[i][j_prime-2].score){
+                //mf.score = table[i-1][j-2].score;
+                mf.score = table[i-1][j_prime-2].score;
                 mf.xpos = i-1;
                 mf.ypos = j-2;
             }
@@ -582,7 +606,9 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
 
             //Precondition: Upper row needs to reach up to diagonal
             if((cell_path_y[i-1]+window_size) >= j-1){
-                scoreDiagonal = table[i-1][j-1].score + score;
+                //scoreDiagonal = table[i-1][j-1].score + score;
+                //printf("access: %"PRIu64"\n", j_prime-1);
+                scoreDiagonal = table[i-1][j_prime-1].score + score;
             }else{
                 scoreDiagonal = INT64_MIN;
             }
@@ -600,39 +626,48 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
             }
             
             //Choose maximum
-            //printf("Score DIAG: %"PRId64"; LEFT: %"PRId64"; RIGHT: %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
-            //getchar();
+            printf("from %c %c and I get to %"PRIu64" while j=%"PRIu64"\n", X[i], Y[j], j_prime, j);
+            printf("Score DIAG: %"PRId64"; LEFT: %"PRId64"; RIGHT: %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
+            printf("currmf: %"PRId64" mc: %"PRId64"\n", mf.score, mc[j-1].score);
+            getchar();
             if(scoreDiagonal >= scoreLeft && scoreDiagonal >= scoreRight){
                 //Diagonal
-                table[i][j].score = scoreDiagonal;
-                table[i][j].xfrom = i-1;
-                table[i][j].yfrom = j-1;
+                table[i][j_prime].score = scoreDiagonal;
+                table[i][j_prime].xfrom = i-1;
+                table[i][j_prime].yfrom = j-1;
                                 
             }else if(scoreRight > scoreLeft){
-                table[i][j].score = scoreRight;
-                table[i][j].xfrom = mc[j-1].xpos;
-                table[i][j].yfrom = mc[j-1].ypos;
+                table[i][j_prime].score = scoreRight;
+                table[i][j_prime].xfrom = mc[j-1].xpos;
+                table[i][j_prime].yfrom = mc[j-1].ypos;
                 
             }else{
-                table[i][j].score = scoreLeft;
-                table[i][j].xfrom = mf.xpos;
-                table[i][j].yfrom = mf.ypos;
+                table[i][j_prime].score = scoreLeft;
+                table[i][j_prime].xfrom = mf.xpos;
+                table[i][j_prime].yfrom = mf.ypos;
             }
         
         
             //check if column max has changed
             //New condition: check if you filled i-2, j-1
-
-            if(i > 1 && j > 1 && ((uint64_t)(cell_path_y[i-2] + window_size)) >= j-1 && table[i-2][j-1].score > mc[j-1].score){
-                mc[j-1].score = table[i-2][j-1].score;
+            
+            if(i > 1 && j > 1 && ((uint64_t)(cell_path_y[i-2] + window_size)) >= j-1 && table[i-2][j_prime-(delta_dif_2)].score >= mc[j-1].score){
+                //mc[j-1].score = table[i-2][j-(1+j_prime)].score;
+                //Should be the j_prime we had at cell_path_y
+                
+                mc[j-1].score = table[i-2][j_prime-(delta_dif_2)].score;
                 mc[j-1].xpos = i-2;
                 mc[j-1].ypos = j-1;
             }
             if(i == Xend-1 || j == Yend-1){
             //Check for best cell
-                if(table[i][j].score >= bc.score){ bc.score = table[i][j].score; bc.xpos = i; bc.ypos = j; }
+                if(table[i][j_prime].score >= bc.score){ bc.score = table[i][j_prime].score; bc.xpos = i; bc.ypos = j; }
             }
+
+            printf("%"PRId64"\t", table[i][j_prime].score);
+            j_prime++;
         }
+        printf("\n");
     }
         
     return bc;
@@ -640,13 +675,14 @@ struct positioned_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, uns
 
 
 
-void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, struct cell ** table, char * rec_X, char * rec_Y, struct positioned_cell * bc, uint64_t * ret_head_x, uint64_t * ret_head_y, BasicAlignment * ba){
+void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, struct cell ** table, char * rec_X, char * rec_Y, struct positioned_cell * bc, uint64_t * ret_head_x, uint64_t * ret_head_y, BasicAlignment * ba, int64_t * cell_path_y, uint64_t window_size){
     uint64_t curr_x, curr_y, prev_x, prev_y, head_x, head_y;
-    int64_t k;
+    int64_t k, j_prime;
     head_x = 2*MAX(Xend, Yend);
     head_y = 2*MAX(Xend, Yend);
     curr_x = bc->xpos;
     curr_y = bc->ypos;
+    printf("Winner is : %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
     prev_x = curr_x;
     prev_y = curr_y;
    
@@ -654,12 +690,18 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     for(k=Yend-1; k>curr_y; k--) rec_Y[head_y--] = '-';
 
     
+
     while(curr_x > 0 && curr_y > 0){
-        curr_x = table[prev_x][prev_y].xfrom;
-        curr_y = table[prev_x][prev_y].yfrom;
-        //printf("(%"PRIu64", %"PRIu64") ::: ", curr_x, curr_y);
-        //printf("(%"PRIu64", %"PRIu64") ::: ", prev_x, prev_y);
-        //getchar();
+        
+        j_prime = MAX(0,(cell_path_y[curr_x] - (int64_t) window_size));
+        j_prime = cell_path_y[curr_x] - j_prime;
+        //printf("Really wierd access: %"PRIu64"\n", j_prime);
+
+        curr_x = table[prev_x][j_prime].xfrom;
+        curr_y = table[prev_x][j_prime].yfrom;
+        printf("(%"PRIu64", %"PRIu64") ::: ", curr_x, curr_y);
+        printf("(%"PRIu64", %"PRIu64") ::: ", prev_x, prev_y);
+        getchar();
 
         if((curr_x == (prev_x - 1)) && (curr_y == (prev_y -1))){
             //Diagonal case
@@ -700,9 +742,9 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     for(k=(int64_t)curr_y-1; k>=0; k--){ rec_Y[head_y--] = '-'; huecos_y++;}
     
     if(huecos_x >= huecos_y){
-    while(huecos_x > 0) {rec_Y[head_y--] = ' '; huecos_x--;}
+        while(huecos_x > 0) {rec_Y[head_y--] = ' '; huecos_x--;}
     }else{
-    while(huecos_y > 0) {rec_X[head_x--] = ' '; huecos_y--;}
+        while(huecos_y > 0) {rec_X[head_x--] = ' '; huecos_y--;}
     }
 
     *ret_head_x = head_x;
