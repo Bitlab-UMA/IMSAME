@@ -90,11 +90,11 @@ int main(int argc, char ** av){
 		    if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
 	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
-    	my_x[i] = (unsigned char *) malloc(MAX_READ_SIZE * sizeof(unsigned char));
-    	my_y[i] = (unsigned char *) malloc(MAX_READ_SIZE * sizeof(unsigned char));
+    	my_x[i] = (unsigned char *) malloc(2*MAX_READ_SIZE * sizeof(unsigned char));
+    	my_y[i] = (unsigned char *) malloc(2*MAX_READ_SIZE * sizeof(unsigned char));
     	reconstruct_X[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
     	reconstruct_Y[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
-	    writing_buffer_alignment[i] = (char *) malloc(MAX_READ_SIZE*sizeof(char));
+	    writing_buffer_alignment[i] = (char *) malloc(2*MAX_READ_SIZE*sizeof(char));
 	    if(table[i] == NULL || mc[i] == NULL || my_x[i] == NULL || my_y[i] == NULL || reconstruct_X[i] == NULL || reconstruct_Y[i] == NULL || writing_buffer_alignment[i] == NULL) terror("Could not allocate buffer for alignment output");
     }
 
@@ -231,7 +231,7 @@ int main(int argc, char ** av){
 
                 }else{ //It can be anything (including N, Y, X ...)
 
-                    if(c != '\n'){
+                    if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         data_database.sequences[pos_in_database++] = (unsigned char) 'N'; //Convert to N
                         if(pos_in_database == READBUF*n_realloc_database){ 
@@ -369,7 +369,7 @@ int main(int argc, char ** av){
                         if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                     }
                 }else{
-                    if(c != '\n'){
+                    if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         data_query.sequences[pos_in_query++] = (unsigned char) 'N'; //Convert to N
                         if(pos_in_query == READBUF*n_realloc_database){ 
@@ -512,20 +512,24 @@ int main(int argc, char ** av){
     free(threads);
     free(hta);
 
-
+    
     for(i=0;i<n_threads;i++){
-
+        
         for(j=0;j<MAX_READ_SIZE;j++){
-		    free(table[i][j]);
+            free(table[i][j]);
         }
+        
         free(table[i]);
+        
         free(mc[i]);
         free(reconstruct_X[i]);
         free(reconstruct_Y[i]);
-        free(my_x[i]);	
+        free(my_x[i]);
         free(my_y[i]);
         free(writing_buffer_alignment[i]);
+        
     }
+    
     free(table);
     free(mc);
     free(reconstruct_X);

@@ -71,6 +71,11 @@ struct positioned_cell{
     uint64_t ypos;
 };
 
+struct best_cell{
+    struct positioned_cell c;
+    uint64_t j_prime;
+};
+
 typedef struct{
     uint64_t identities;
     uint64_t length;
