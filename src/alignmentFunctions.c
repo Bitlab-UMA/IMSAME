@@ -549,6 +549,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     //The limits to the window
     limit_left = 0;
     limit_right = 2*window_size + 1;
+    if(limit_right > MAX_WINDOW_SIZE) limit_right = MAX_WINDOW_SIZE;
     
     struct positioned_cell mf;
     mf.score = INT64_MIN;
