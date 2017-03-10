@@ -556,14 +556,19 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
     //First row. iCounter serves as counter from zero
     //printf("..0%%");
+    //Zero will always be
+    table[0][0].score = compare_letters(X[0], Y[0]);
+    mc[0].score = table[0][0].score;
+    mc[0].xpos = 0;
+    mc[0].ypos = 0;
 
-    for(i=0;i<Yend;i++){
+    for(i=1;i<Yend;i++){
         //table[0][i].score = (X[0] == Y[i]) ? POINT : -POINT;
-        if(i < cell_path_y[0] + window_size) table[0][i].score = compare_letters(X[0], Y[i]);
+        if(i < cell_path_y[0] + window_size) table[0][i].score = compare_letters(X[0], Y[i]) + iGap + (i-1)*eGap;
         //table[Xstart][i].xfrom = Xstart;
         //table[Xstart][i].yfrom = i;
         //Set every column max
-        mc[i].score = compare_letters(X[0], Y[i]);
+        mc[i].score = compare_letters(X[0], Y[i]) + iGap + (i-1)*eGap;
         #ifdef VERBOSE
         printf("%02"PRId64" ", mc[i].score);
         #endif
@@ -586,21 +591,21 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         //Fill first rowcell
 
         //Conversion for the j-coordinate
-        j_prime = 0;
+        j_prime = 1;
 
         //table[i][0].score = (X[i] == Y[0]) ? POINT : -POINT;
         if(cell_path_y[i] - window_size <= 0){
-            table[i][0].score = compare_letters(X[i], Y[0]);
+            table[i][0].score = compare_letters(X[i], Y[0]) + iGap + (i-1)*eGap;
             mf.score = table[i][0].score;
         }else{
-            mf.score = compare_letters(X[i], Y[0]);    
+            mf.score = compare_letters(X[i], Y[0]) + iGap + (i-1)*eGap;
         }
 
-        mf.xpos = i;
+        mf.xpos = i-1;
         mf.ypos = 0;
 
-        delta_dif_1_0 = MAX(0, (cell_path_y[i] - window_size)) - MAX(0,(cell_path_y[i-1] - window_size)); //j-1
-        if(i>1) delta_dif_2_1 = MAX(0, (cell_path_y[i-1] - window_size)) - MAX(0, (cell_path_y[i-2] - window_size)); //j-2
+        delta_dif_1_0 = MAX(1, (cell_path_y[i] - window_size)) - MAX(1,(cell_path_y[i-1] - window_size)); //j-1
+        if(i>1) delta_dif_2_1 = MAX(1, (cell_path_y[i-1] - window_size)) - MAX(1, (cell_path_y[i-2] - window_size)); //j-2
 
         #ifdef VERBOSE 
         printf("D1_0: %"PRId64" D2_1: %"PRId64"\n", delta_dif_1_0, delta_dif_2_1);
@@ -638,7 +643,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 j_right_prime = ((int64_t)j_prime - (1 - (delta_dif_1_0 + delta_dif_2_1)));
             }
 
-            if(j_left_prime >= limit_left && j_left_prime < limit_right && mf.score <= table[i][j_left_prime].score){
+            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && j_left_prime >= limit_left && j_left_prime < limit_right && table[i-1][j_left_prime].score >= mf.score){
                 //mf.score = table[i-1][j-2].score;
                 mf.score = table[i-1][j_left_prime].score;
                 mf.xpos = i-1;
@@ -651,7 +656,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
             //Precondition: Upper row needs to reach up to diagonal
             //if((cell_path_y[i-1]+window_size) >= j-1){
-            if(j_diag_prime >= limit_left && j_diag_prime < limit_right){
+            if(j-1 >= MAX(0, (cell_path_y[i-1]-window_size)) && (cell_path_y[i-1]+window_size) >= j-1 && j_diag_prime >= limit_left && j_diag_prime < limit_right){
                 //scoreDiagonal = table[i-1][j-1].score + score;
                 //printf("prevdiag: %"PRId64"\n", table[i-1][j_diag_prime].score);
                 scoreDiagonal = table[i-1][j_diag_prime].score + score;
@@ -661,14 +666,14 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             }
             
             if(i>=1 && j>1){
-                scoreLeft = mf.score + iGap + (j - (mf.ypos+1))*eGap + score;
+                scoreLeft = mf.score + iGap + (j - (mf.ypos+2))*eGap + score;
                 
             }else{
                 scoreLeft = INT64_MIN;
             }
 
             if(j>=1 && i>1){
-                scoreRight = mc[j-1].score + iGap + (i - (mc[j-1].xpos+1))*eGap + score;
+                scoreRight = mc[j-1].score + iGap + (i - (mc[j-1].xpos+2))*eGap + score;
                 //if(scoreRight == -12) printf("MC: %"PRId64", From: %"PRIu64", %"PRIu64"->", mc[j-1].score, mc[j-1].xpos, mc[j-1].ypos);
             }else{
                 scoreRight = INT64_MIN;
@@ -717,7 +722,13 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 mc[j-1].ypos = j-1;
             }
             if(i == Xend-1 || j == Yend-1){
-            //Check for best cell
+
+                if(i == Xend-1 && j != Yend-1){
+            		table[i][j_prime].score = table[i][j_prime].score + iGap + (Yend - j)*eGap;
+            	}else if(j == Yend-1 && i != Xend-1){
+            		table[i][j_prime].score = table[i][j_prime].score + iGap + (Xend - i)*eGap;
+            	}
+                //Check for best cell
                 if(table[i][j_prime].score >= bc.c.score){ bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime; }
             }
             #ifdef VERBOSE
@@ -798,7 +809,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         }else if((prev_x - curr_x) > (prev_y - curr_y)){
             //Gap in X
             //printf("Gap X\n");
-            for(k=prev_x;k>curr_x;k--){
+            for(k=prev_x-1;k>curr_x;k--){
                 rec_Y[head_y--] = '-';
                 rec_X[head_x--] = (char) X[k];
                 ba->length++;
@@ -810,7 +821,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //Gap in Y
             //printf("GAP Y\n");
             //10, 0, 401, 281
-            for(k=prev_y;k>curr_y;k--){
+            for(k=prev_y-1;k>curr_y;k--){
                 rec_X[head_x--] = '-';
                 rec_Y[head_y--] = (char) Y[k];
                 ba->length++;
