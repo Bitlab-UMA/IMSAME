@@ -810,6 +810,8 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         }else if((prev_x - curr_x) > (prev_y - curr_y)){
             //Gap in X
             //printf("Gap X\n");
+            rec_Y[head_y--] = Y[prev_y];
+            rec_X[head_x--] = X[prev_x];
             for(k=prev_x-1;k>curr_x;k--){
                 rec_Y[head_y--] = '-';
                 rec_X[head_x--] = (char) X[k];
@@ -822,7 +824,10 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //Gap in Y
             //printf("GAP Y\n");
             //10, 0, 401, 281
+            rec_Y[head_y--] = Y[prev_y];
+            rec_X[head_x--] = X[prev_x];
             for(k=prev_y-1;k>curr_y;k--){
+                
                 rec_X[head_x--] = '-';
                 rec_Y[head_y--] = (char) Y[k];
                 ba->length++;
@@ -834,8 +839,8 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         
     }
     if(curr_x == 0 && curr_y == 0){
-        rec_X[head_x--] = (char) X[prev_x];
-        rec_Y[head_y--] = (char) Y[prev_y];
+        rec_X[head_x--] = (char) X[curr_x];
+        rec_Y[head_y--] = (char) Y[curr_y];
         ba->length++;
     }
     
