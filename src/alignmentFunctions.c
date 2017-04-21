@@ -199,11 +199,11 @@ typedef struct {
                         #endif
 
                         //If is good
-                        if(((long double)ba.length/ylen) >= hta->min_coverage && ((long double)ba.identities/ba.length) >=  hta->min_identity){
+                        if(((long double)ba.length/xlen) >= hta->min_coverage && ((long double)ba.identities/ba.length) >=  hta->min_identity){
                             hta->accepted_query_reads++;   
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
-                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*ba.identities/ba.length)), MIN(100,(int)(100*ba.length/ylen)), ylen);
+                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*ba.identities/ba.length)), MIN(100,(int)(100*ba.length/xlen)), xlen);
                                 fprintf(hta->out, "%s", hta->writing_buffer_alignment);
                                 //fprintf(stdout, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*ba.identities/ba.length)), MIN(100,(int)(100*ba.length/ylen)), ylen);
                                 //fprintf(stdout, "%s", hta->writing_buffer_alignment);
@@ -731,6 +731,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             	}
                 //Check for best cell
                 if(table[i][j_prime].score >= bc.c.score){ bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime; }
+                //bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime;
             }
             #ifdef VERBOSE
             //printf("Put score: %"PRId64"\n\n", table[i][j_prime].score);
@@ -764,6 +765,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     #endif
     prev_x = curr_x;
     prev_y = curr_y;
+    int show = 0;
    
     for(k=Xend-1; k>curr_x; k--) rec_X[head_x--] = '-';
     for(k=Yend-1; k>curr_y; k--) rec_Y[head_y--] = '-';
@@ -776,7 +778,8 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         
         if(first_track == 0){
             delta_diff = MAX(1, cell_path_y[prev_x] - (int64_t) window_size) - MAX(1, cell_path_y[curr_x] - (int64_t)window_size); //j-1
-            j_prime = j_prime - (int64_t)(prev_y - curr_y) + (int64_t) delta_diff;
+            j_prime = MAX(0, j_prime - (int64_t)(prev_y - curr_y) + (int64_t) delta_diff);
+            //j_prime = j_prime - (int64_t)(prev_y - curr_y) + (int64_t) delta_diff;
 
             prev_x = curr_x;
             prev_y = curr_y;
@@ -792,6 +795,22 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             #endif
 
         }
+        
+        //if(table[prev_x][j_prime].xfrom > MAX_READ_SIZE || table[prev_x][j_prime].yfrom > MAX_WINDOW_SIZE) fprintf(stdout, "OH NOES !! %"PRIu64"\t%"PRId64"\t%"PRIu64"\t%"PRIu64" dangers: %"PRIu64", %"PRIu64"\n", prev_x, j_prime, Xend, Yend, table[prev_x][j_prime].xfrom, table[prev_x][j_prime].yfrom);
+
+        if(table[prev_x][j_prime].xfrom > MAX_READ_SIZE || table[prev_x][j_prime].yfrom > MAX_WINDOW_SIZE){
+            fprintf(stdout, "OH NOES !! %"PRIu64"\t%"PRId64"\t%"PRIu64"\t%"PRIu64" dangers: %"PRIu64", %"PRIu64"\n", prev_x, j_prime, Xend, Yend, table[prev_x][j_prime].xfrom, table[prev_x][j_prime].yfrom);
+            uint64_t k;
+            for(k=0;k<Xend;k++){
+                fprintf(stdout, "%c", X[k]);
+            }
+            fprintf(stdout, "\n");
+            for(k=0;k<Yend;k++){
+                fprintf(stdout, "%c", Y[k]);
+            }
+            fprintf(stdout, "\n");
+            show = 1;
+        } 
 
         curr_x = table[prev_x][j_prime].xfrom;
         curr_y = table[prev_x][j_prime].yfrom;
@@ -833,6 +852,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 ba->length++;
                 ba->egaps++;
             }
+            
             ba->igaps += 1;
             ba->egaps--;
         }
@@ -846,14 +866,34 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     
     //printf("curr: %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
     //printf("Heads: %"PRIu64", %"PRIu64"\n", head_x, head_y);
+    if(show == 1)fprintf(stdout, "%"PRIu64", %"PRIu64"\n", head_x, head_y);
     uint64_t huecos_x = 0, huecos_y = 0;
-    for(k=(int64_t)curr_x-1; k>=0; k--){ rec_X[head_x--] = '-'; huecos_x++;}
-    for(k=(int64_t)curr_y-1; k>=0; k--){ rec_Y[head_y--] = '-'; huecos_y++;}
+    k=(int64_t)curr_x-1;
+    while(k>=0){ if(head_x == 0) break; rec_X[head_x--] = '-'; huecos_x++;  k--; }
+    k=(int64_t)curr_y-1;
+    while(k>=0){ if(head_y == 0) break; rec_Y[head_y--] = '-'; huecos_y++; k--; }
     
+    if(show == 1)fprintf(stdout, "%"PRIu64", %"PRIu64"\n", head_x, head_y);
+
     if(huecos_x >= huecos_y){
-        while(huecos_x > 0) {rec_Y[head_y--] = ' '; huecos_x--;}
+        while(huecos_x > 0) { if(head_y == 0) break; rec_Y[head_y--] = ' '; huecos_x--;}
     }else{
-        while(huecos_y > 0) {rec_X[head_x--] = ' '; huecos_y--;}
+        while(huecos_y > 0) { if(head_x == 0) break; rec_X[head_x--] = ' '; huecos_y--;}
+    }
+
+    if(show == 1){
+        fprintf(stdout, "%"PRIu64", %"PRIu64"\n", head_x, head_y);
+        fprintf(stdout, "%"PRIu64", %"PRIu64"\n", 2*Xend, 2*Yend);
+        uint64_t k;
+        for(k=head_x;k<2*Xend;k++){
+            fprintf(stdout, "%c", rec_X[k]);
+        }
+        printf("\n");
+        for(k=head_y;k<2*Yend;k++){
+            fprintf(stdout, "%c", rec_Y[k]);
+        }
+        printf("\n");
+        getchar();
     }
 
     *ret_head_x = head_x;
