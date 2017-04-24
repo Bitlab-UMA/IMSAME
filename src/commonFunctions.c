@@ -26,6 +26,7 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f) {
 Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, uint64_t levels){
     uint64_t i, j;
     uint64_t reads_per_thread;
+    if(levels > t_reads) levels = 1;
     uint64_t pieces = t_reads/levels;
     uint64_t from, to, t_queues = 0, current_queue = 0;
     for(i=0;i<levels;i++) t_queues += ((i+1)*n_threads);

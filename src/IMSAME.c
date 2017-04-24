@@ -231,7 +231,7 @@ int main(int argc, char ** av){
 
                 }else{ //It can be anything (including N, Y, X ...)
 
-                    if(c != '\n'){
+                    if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         data_database.sequences[pos_in_database++] = (unsigned char) 'N'; //Convert to N
                         if(pos_in_database == READBUF*n_realloc_database){ 
@@ -369,7 +369,7 @@ int main(int argc, char ** av){
                         if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                     }
                 }else{
-                    if(c != '\n'){
+                    if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         data_query.sequences[pos_in_query++] = (unsigned char) 'N'; //Convert to N
                         if(pos_in_query == READBUF*n_realloc_database){ 
