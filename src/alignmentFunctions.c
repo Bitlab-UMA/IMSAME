@@ -13,7 +13,7 @@
 
 
 inline int64_t compare_letters(unsigned char a, unsigned char b){
-    if(a != (unsigned char) 'N') return (a == b) ? POINT : -POINT;
+    if(a != (unsigned char) 'N' && a != (unsigned char) '>') return (a == b) ? POINT : -POINT;
     return -POINT;
 }
 
@@ -159,9 +159,14 @@ typedef struct {
                     //fflush(stdout);
                     curr_db_seq = aux->s_id;
                     pos_of_hit = aux->pos;
+                    #ifdef VERBOSE 
+                    fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", %"PRIu64"\n", curr_read, curr_pos+1, pos_of_hit);
+                    #endif 
                     alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
 
-                    //printf("curr evalue: %Le %"PRIu64"\n", qf.e_value, qf.t_len);
+                    #ifdef VERBOSE 
+                    printf("curr evalue: %Le %"PRIu64"\n", qf.e_value, qf.t_len);
+                    #endif
                     //getchar();
                     
 
@@ -185,8 +190,13 @@ typedef struct {
                         if(xlen > MAX_READ_SIZE || ylen > MAX_READ_SIZE) terror("Read size reached for gapped alignment.");
                         //fprintf(stdout, "R0 %"PRIu64", %"PRIu64"\n", curr_db_seq, curr_read);
                         
+                        #ifdef VERBOSE 
+                        fprintf(stdout, "qfxs %"PRIu64", dbs %"PRIu64", qfys %"PRIu64" qys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
+                        #endif
+
                         p1.x = qf.x_start - hta->database->start_pos[curr_db_seq];
-                        p1.y = qf.y_start - hta->query->start_pos[curr_read];
+                        //p1.y = qf.y_start - hta->query->start_pos[curr_read];
+                        p1.y = qf.y_start - (hta->query->start_pos[curr_read] -1);
                         p2.x = p1.x + qf.t_len;
                         p2.y = p1.y + qf.t_len;
                         p3.x = xlen;
@@ -345,10 +355,10 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 
     if(curr_db_seq == database->n_seqs-1){
         read_x_start = database->start_pos[curr_db_seq];
-	read_x_end = database->total_len;
+	    read_x_end = database->total_len;
     }else{     
         read_x_start = database->start_pos[curr_db_seq];
-	read_x_end = database->start_pos[curr_db_seq+1] - 1;
+	    read_x_end = database->start_pos[curr_db_seq+1] - 1;
     }
 
     if(curr_read == query->n_seqs-1){
@@ -415,6 +425,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
             if(high_left <= score_left){
                 final_start_x = curr_pos_db;
                 final_start_y = curr_pos_qy;
+                //printf("got %"PRIu64" when min is %"PRIu64"\n", final_start_y, read_y_start);
                 high_left = score_left;
             }
             curr_pos_db--;
@@ -754,10 +765,17 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
 
 void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, struct cell ** table, char * rec_X, char * rec_Y, struct best_cell * bc, uint64_t * ret_head_x, uint64_t * ret_head_y, BasicAlignment * ba, int64_t * cell_path_y, uint64_t window_size){
-    uint64_t curr_x, curr_y, prev_x, prev_y, head_x, head_y;
+    uint64_t curr_x, curr_y, prev_x, prev_y, head_x, head_y, limit_x, limit_y;
     int64_t k, j_prime, delta_diff = 0;
-    head_x = 2*MAX(Xend, Yend);
-    head_y = 2*MAX(Xend, Yend);
+
+    //limit_x = 2*MAX_READ_SIZE-1;
+    //limit_y = limit_x;
+    limit_x = 2*MAX(Xend, Yend);
+    limit_y = limit_x;
+    //head_x = 2*MAX(Xend, Yend);
+    //head_y = 2*MAX(Xend, Yend);
+    head_x = limit_x;
+    head_y = limit_y;
     curr_x = bc->c.xpos;
     curr_y = bc->c.ypos;
     #ifdef VERBOSE
@@ -822,6 +840,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         if((curr_x == (prev_x - 1)) && (curr_y == (prev_y -1))){
             //Diagonal case
             //printf("DIAG\n");
+            if(head_x == 0 || head_y == 0) goto exit_point;
             rec_X[head_x--] = (char) X[prev_x];
             rec_Y[head_y--] = (char) Y[prev_y];
             ba->length++;
@@ -829,6 +848,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         }else if((prev_x - curr_x) > (prev_y - curr_y)){
             //Gap in X
             //printf("Gap X\n");
+            if(head_x == 0 || head_y == 0) goto exit_point;
             if(bc->c.xpos != prev_x && bc->c.ypos != prev_y){
                 rec_Y[head_y--] = Y[prev_y];
                 rec_X[head_x--] = X[prev_x];
@@ -838,6 +858,22 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             }
             
             for(k=prev_x-1;k>curr_x;k--){
+                if(head_x == 0 || head_y == 0) goto exit_point;
+                #ifdef VERBOSE 
+                if(head_x == 0 || head_y == 0){
+                    printf("%"PRIu64" %"PRIu64" and prevs are %"PRIu64" %"PRIu64"\n", head_x, head_y, prev_x, prev_y);
+                    printf("origin is %"PRIu64", %"PRIu64"\n", bc->c.xpos, bc->c.ypos);
+                    uint64_t z;
+                    for(z=head_x;z<limit_x;z++){
+                        fprintf(stdout, "%c", (char) rec_X[z]);
+                    }
+                    printf("\n");
+                    for(z=head_y;z<limit_y;z++){
+                        fprintf(stdout, "%c", (char) rec_Y[z]);
+                    }
+                    getchar();
+                }
+                #endif
                 rec_Y[head_y--] = '-';
                 rec_X[head_x--] = (char) X[k];
                 ba->length++;
@@ -849,6 +885,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //Gap in Y
             //printf("GAP Y\n");
             //10, 0, 401, 281
+            if(head_x == 0 || head_y == 0) goto exit_point;
             if(bc->c.xpos != prev_x && bc->c.ypos != prev_y){
                 rec_Y[head_y--] = Y[prev_y];
                 rec_X[head_x--] = X[prev_x];
@@ -857,7 +894,22 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 rec_X[head_x--] = '-';
             }
             for(k=prev_y-1;k>curr_y;k--){
-                
+                if(head_x == 0 || head_y == 0) goto exit_point;
+                #ifdef VERBOSE 
+                if(head_x == 0 || head_y == 0){
+                    printf("%"PRIu64" %"PRIu64" and prevs are %"PRIu64" %"PRIu64"\n", head_x, head_y, prev_x, prev_y);
+                    printf("origin is %"PRIu64", %"PRIu64"\n", bc->c.xpos, bc->c.ypos);
+                    uint64_t z;
+                    for(z=head_x;z<limit_x;z++){
+                        fprintf(stdout, "%c", (char) rec_X[z]);
+                    }
+                    printf("\n");
+                    for(z=head_y;z<limit_y;z++){
+                        fprintf(stdout, "%c", (char) rec_Y[z]);
+                    }
+                    getchar();
+                }
+                #endif
                 rec_X[head_x--] = '-';
                 rec_Y[head_y--] = (char) Y[k];
                 ba->length++;
@@ -876,6 +928,8 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         ba->length++;
     }
     
+    exit_point:
+
     //printf("curr: %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
     //printf("Heads: %"PRIu64", %"PRIu64"\n", head_x, head_y);
     if(show == 1)fprintf(stdout, "%"PRIu64", %"PRIu64"\n", head_x, head_y);
@@ -897,12 +951,12 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         fprintf(stdout, "%"PRIu64", %"PRIu64"\n", head_x, head_y);
         fprintf(stdout, "%"PRIu64", %"PRIu64"\n", 2*Xend, 2*Yend);
         uint64_t k;
-        for(k=head_x;k<2*Xend;k++){
-            fprintf(stdout, "%c", rec_X[k]);
+        for(k=head_x;k<limit_x;k++){
+            fprintf(stdout, "%c", (char) rec_X[k]);
         }
         printf("\n");
-        for(k=head_y;k<2*Yend;k++){
-            fprintf(stdout, "%c", rec_Y[k]);
+        for(k=head_y;k<limit_y;k++){
+            fprintf(stdout, "%c", (char) rec_Y[k]);
         }
         printf("\n");
         getchar();

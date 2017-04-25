@@ -15,6 +15,7 @@
 #include "commonFunctions.h"
 
 #define SEQSIZE 2000000000
+#define READINPUT
 #define WSIZE 32
 #define NREADS 1000000
 
@@ -22,7 +23,7 @@ int main(int ac, char** av) {
 	FILE *fIn, *fOut;
 	int64_t i, j, nR, seqLen = 0;
 	char *seq, c, toW;
-	long offset[NREADS];
+	long *offset = NULL;
 
 	if (ac != 3)
 		terror("USE: reverseComplement seqFile.IN reverseComplementarySeq.OUT");
@@ -39,6 +40,9 @@ int main(int ac, char** av) {
 
 	if ((fOut = fopen(av[2], "wt")) == NULL)
 		terror("opening OUT sequence Words file");
+	
+	if ((offset = (long *) malloc(sizeof(long)*NREADS)) == NULL)
+		terror("memory for offsets");
 
 	for(i=0;i<NREADS;i++){
 		offset[i]=0;
@@ -56,7 +60,7 @@ int main(int ac, char** av) {
 	for(i=nR-1; i>=0; i--){
 		fseek(fIn, offset[i], SEEK_SET);
 		//READ and write header
-		if(fgets(seq, SEQSIZE, fIn)==NULL){
+		if(fgets(seq, READINPUT, fIn)==NULL){
 			terror("Empty file");
 		}
 		fprintf(fOut, "%s", seq);
