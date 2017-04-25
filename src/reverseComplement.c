@@ -15,7 +15,7 @@
 #include "commonFunctions.h"
 
 #define SEQSIZE 2000000000
-#define READINPUT
+#define READINPUT 10000
 #define WSIZE 32
 #define NREADS 1000000
 
