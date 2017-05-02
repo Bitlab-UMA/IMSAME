@@ -86,7 +86,7 @@ int main(int argc, char ** av){
 	
     	table[i] = (struct cell **) malloc(MAX_READ_SIZE * sizeof(struct cell *));
 	    for(j=0;j<MAX_READ_SIZE;j++){
-		    table[i][j] = (struct cell *) malloc(MAX_WINDOW_SIZE*sizeof(struct cell));
+            table[i][j] = (struct cell *) malloc((1+MAX_WINDOW_SIZE)*sizeof(struct cell));
 		    if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
 	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
@@ -94,7 +94,7 @@ int main(int argc, char ** av){
     	my_y[i] = (unsigned char *) malloc(2*MAX_READ_SIZE * sizeof(unsigned char));
     	reconstruct_X[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
     	reconstruct_Y[i] = (char *) malloc(2*MAX_READ_SIZE * sizeof(char));
-	    writing_buffer_alignment[i] = (char *) malloc(2*MAX_READ_SIZE*sizeof(char));
+	    writing_buffer_alignment[i] = (char *) malloc(6*MAX_READ_SIZE*sizeof(char)); //6 times because of 2 times the length of the max of the read, and that happens 3 times (seqX,align,Y)
 	    if(table[i] == NULL || mc[i] == NULL || my_x[i] == NULL || my_y[i] == NULL || reconstruct_X[i] == NULL || reconstruct_Y[i] == NULL || writing_buffer_alignment[i] == NULL) terror("Could not allocate buffer for alignment output");
     }
 
