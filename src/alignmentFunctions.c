@@ -164,12 +164,25 @@ typedef struct {
                     #endif 
 
 
-                    //if(curr_read == 3 && curr_db_seq == 5532){
-                    //fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
-                    //fprintf(stdout, "lengths: x: %"PRIu64", y: %"PRIu64"\n", xlen, ylen);
-                    //getchar();
-                    alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
-                    //printf(" evalue: %Le %"PRIu64"\n", qf.e_value, qf.t_len);
+                    //if(curr_read == 0 && curr_db_seq == 363){
+                        /*
+                        if(curr_db_seq == hta->database->n_seqs-1){
+                            xlen = hta->database->total_len - hta->database->start_pos[curr_db_seq];
+                        }else{
+                            xlen = hta->database->start_pos[curr_db_seq+1] - hta->database->start_pos[curr_db_seq];
+                        }
+                        if(curr_read == hta->query->n_seqs-1){
+                            ylen = hta->query->total_len - hta->query->start_pos[curr_read];
+                        }else{
+                            ylen = hta->query->start_pos[curr_read+1] - hta->query->start_pos[curr_read];
+                        }
+                        */
+                        //fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": \n", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                        //printf("what do you think will happen: %"PRIu64"\n", hta->database->start_pos[curr_db_seq]);
+                        //fprintf(stdout, "lengths: x: %"PRIu64", y: %"PRIu64"\n", xlen, ylen);
+                        //getchar();
+                        alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
+                    //    printf(" evalue: %Le %"PRIu64"\n", qf.e_value, qf.t_len);
                     //}else{
                     //    qf.e_value = 10000000;
                     //}
@@ -186,7 +199,7 @@ typedef struct {
                         ba.identities = ba.length = ba.igaps = ba.egaps = 0;
                         //Compute lengths of reads
                         if(curr_db_seq == hta->database->n_seqs-1){
-                            xlen = hta->database->total_len - hta->database->start_pos[curr_db_seq];
+                            xlen = hta->database->total_len - hta->database->start_pos[curr_db_seq];                          
                         }else{
                             xlen = hta->database->start_pos[curr_db_seq+1] - hta->database->start_pos[curr_db_seq];
                         }
@@ -195,6 +208,7 @@ typedef struct {
                         }else{
                             ylen = hta->query->start_pos[curr_read+1] - hta->query->start_pos[curr_read];
                         }
+                        //fprintf(stdout, "lengths: x: %"PRIu64", y: %"PRIu64"\n", xlen, ylen);
                         //Perform alignment plus backtracking
                         //void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_db_seq, uint64_t curr_read, HashTableArgs * hta, char * my_x, char * my_y, struct cell ** table, struct cell * mc, char * writing_buffer_alignment, BasicAlignment * ba, uint64_t xlen, uint64_t ylen)
                         if(xlen > MAX_READ_SIZE || ylen > MAX_READ_SIZE) terror("Read size reached for gapped alignment.");
@@ -204,6 +218,9 @@ typedef struct {
                         fprintf(stdout, "qfxs %"PRIu64", dbs %"PRIu64", qfys %"PRIu64" qys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
                         #endif
 
+                        //fprintf(stdout, "dbFragxs %"PRIu64", dbs %"PRIu64", rFragys %"PRIu64" rys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
+                        
+
                         p1.x = qf.x_start - hta->database->start_pos[curr_db_seq];
                         //p1.y = qf.y_start - hta->query->start_pos[curr_read];
                         p1.y = qf.y_start - (hta->query->start_pos[curr_read] -1);
@@ -212,6 +229,15 @@ typedef struct {
                         p3.x = xlen;
                         p3.y = ylen;
                         calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
+
+                        // REMOVE
+                        uint64_t r1,r2;
+                        for(r1=0;r1<MAX_WINDOW_SIZE;r1++){
+                            for(r2=0;r2<MAX_WINDOW_SIZE;r2++){
+                                hta->table[r1][r2].score = INT64_MIN;
+                            }
+                        }
+
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
@@ -488,6 +514,13 @@ void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * y_p
     printf("(%"PRIu64", %"PRIu64")\n", p3.x, p3.y);
     #endif
 
+    
+
+    if(p0.x > MAX_READ_SIZE) terror("Reached max length in read for anchoring procedure (1)");
+    if(p1.x > MAX_READ_SIZE) terror("Reached max length in read for anchoring procedure (2)");
+    if(p2.x > MAX_READ_SIZE) terror("Reached max length in read for anchoring procedure (3)");
+    if(p3.x > MAX_READ_SIZE) terror("Reached max length in read for anchoring procedure (4)");
+
     long double deltax, deltay, deltaerr, error;
     uint64_t y;
 
@@ -639,7 +672,15 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         printf("%02"PRId64" ", mf.score);
         #endif
         //printf("Check on i: (%"PRIu64") from - to (%"PRIu64", %"PRIu64")\n", i, 0L, Xend);
-        //printf("I will go from %"PRIu64" to %"PRIu64"\n", (uint64_t) MAX(1,(cell_path_y[i] - window_size)), (uint64_t) MIN(Yend,(cell_path_y[i] + window_size)));
+        /*
+        if(i==94){
+            printf("I will go from %"PRIu64" to %"PRIu64"\n", (uint64_t) MAX(1,(cell_path_y[i] - (int64_t)window_size)), (uint64_t) MIN((int64_t)Yend,(cell_path_y[i] + (int64_t)window_size)));
+            printf("lengs: %"PRIu64", %"PRIu64"\n", Xend, Yend);
+            printf("cp[i]: %"PRId64", cp[i-1] %"PRId64"\n", cell_path_y[i], cell_path_y[i-1]);
+            printf("min(%"PRId64", %"PRId64" + %"PRId64")\n", Yend, cell_path_y[i] ,(int64_t)window_size);
+            
+        }
+        */
         //getchar();
 
         #ifdef VERBOSE
@@ -653,7 +694,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
         
 
-        for(j=MAX(1,(cell_path_y[i] - window_size));j<MIN(Yend,(cell_path_y[i] + window_size));j++){
+        for(j=MAX(1,(cell_path_y[i] - window_size));j<MIN(Yend,(cell_path_y[i] + window_size)) && j_prime < limit_right;j++){
             //if(i == 8302){ printf("Doing on : (%"PRIu64",%"PRIu64" and jprime=%"PRIu64"\n", i,j,j_prime); getchar(); }
             //Check if max in row has changed
             //if(j > MAX(1, cell_path_y[i-1] - window_size +1) && mf.score <= table[i][j-2].score){
@@ -681,11 +722,13 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //Precondition: Upper row needs to reach up to diagonal
             //if((cell_path_y[i-1]+window_size) >= j-1){
             
-            if(j-1 >= MAX(0, (cell_path_y[i-1]-window_size)) && (cell_path_y[i-1]+window_size) >= j-1 && j_diag_prime >= limit_left && j_diag_prime < limit_right){
+            
+
+            if(j-1 >= MAX(0, (cell_path_y[i-1]-window_size)) && (cell_path_y[i-1]+window_size) >= j-1 && j_diag_prime >= limit_left && j_diag_prime < limit_right && j_diag_prime < j-1){
                 //scoreDiagonal = table[i-1][j-1].score + score;
                 //printf("prevdiag: %"PRId64"\n", table[i-1][j_diag_prime].score);
-                scoreDiagonal = table[i-1][j_diag_prime].score + score;
-                //printf("j_diag: %"PRId64":", j_diag_prime);
+                scoreDiagonal = table[i-1][j_diag_prime].score + score;                
+                if(table[i-1][j_diag_prime].score == INT64_MIN){ printf("A: i-1\t%"PRIu64"\tj_diag\t%"PRIu64"\ts%"PRId64"\n", i-1, j_diag_prime, table[i-1][j_diag_prime].score); printf("@[%"PRIu64", %"PRIu64"] with j_prime: %"PRIu64", wsize: %"PRIu64", cp[i-1]=%"PRId64", cp[i]=%"PRId64"\n", i, j, j_prime, 2*window_size, cell_path_y[i-1], cell_path_y[i]); getchar(); }
             }else{
                 scoreDiagonal = INT64_MIN;
             }
@@ -693,6 +736,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             if(i>=1 && j>1){
                 scoreLeft = mf.score + iGap + (j - (mf.ypos+2))*eGap + score;
                 
+                if(mf.score == INT64_MIN){ printf("A: mf.x\t%"PRIu64"\tmf.y\t%"PRIu64"\ts%"PRId64"\n", mf.xpos, mf.ypos, mf.score); printf("@[%"PRIu64", %"PRIu64"] with j_prime: %"PRIu64", wsize: %"PRIu64", cp[i-1]=%"PRId64", cp[i]=%"PRId64"\n", i, j, j_prime, 2*window_size, cell_path_y[i-1], cell_path_y[i]); getchar(); }
             }else{
                 scoreLeft = INT64_MIN;
             }
@@ -700,6 +744,8 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             if(j>=1 && i>1){
                 scoreRight = mc[j-1].score + iGap + (i - (mc[j-1].xpos+2))*eGap + score;
                 //if(scoreRight == -12) printf("MC: %"PRId64", From: %"PRIu64", %"PRIu64"->", mc[j-1].score, mc[j-1].xpos, mc[j-1].ypos);
+                
+                if(mc[j-1].score == INT64_MIN){ printf("A: j-1\t%"PRIu64"\tmc.xpos\t%"PRIu64"\ts%"PRId64"\n", j-1, mc[j-1].xpos, mc[j-1].score); printf("@[%"PRIu64", %"PRIu64"] with j_prime: %"PRIu64", wsize: %"PRIu64", cp[i-1]=%"PRId64", cp[i]=%"PRId64"\n", i, j, j_prime, 2*window_size, cell_path_y[i-1], cell_path_y[i]); getchar(); }
             }else{
                 scoreRight = INT64_MIN;
             }
@@ -719,10 +765,8 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
             //if(i >= MAX_READ_SIZE){ printf("i=%"PRIu64"\n", i); terror("i overflowed\n");}
             //if(j_prime >= MAX_WINDOW_SIZE){ printf("upper : %"PRId64"\n", MIN(Yend,(cell_path_y[i] + window_size-1))); printf("jp=%"PRIu64"\n", j_prime); terror("j overflowed\n"); }
+          
 
-            
-
-            if(scoreDiagonal == INT64_MIN && scoreDiagonal == scoreLeft && scoreLeft == scoreRight) { printf("Happeneing at %"PRIu64", %"PRIu64", %"PRIu64" cellpaths are [i-1, i, i+1] = { %"PRIu64", %"PRIu64", %"PRIu64" }\n", i, j, j_prime, cell_path_y[i-1], cell_path_y[i], cell_path_y[i+1]); exit(-1);}
 
             if(scoreDiagonal >= scoreLeft && scoreDiagonal >= scoreRight){
                 //Diagonal
@@ -739,11 +783,15 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 table[i][j_prime].yfrom = mc[j-1].ypos;
                 
             }else{
+                //printf("Scores %"PRId64", %"PRId64", %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
                 table[i][j_prime].score = scoreLeft;
                 table[i][j_prime].xfrom = mf.xpos;
                 table[i][j_prime].yfrom = mf.ypos;
             }
-        
+            //printf("F: i\t%"PRIu64"\tj_prime\t%"PRIu64"\n", i, j_prime);
+            //getchar();
+            //if(i == 94){ printf("showing j %"PRIu64" jprime %"PRIu64" lleft %"PRIu64", llright %"PRIu64"\n", j, j_prime, limit_left, limit_right); getchar(); }
+            //if(i == 94 && j == 374){ printf("stopped at 94, 374 s %"PRId64"\n", table[i][j_prime].score); getchar(); }
             
             /*
             if(i == 8305 && j == 624){
@@ -797,6 +845,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //if(scoreDiagonal >= scoreLeft && scoreDiagonal >= scoreRight) printf("*\t");
             //else if(scoreRight > scoreLeft) printf("{\t"); else printf("}\t");
             //getchar();
+
             #endif
             j_prime++;
         }

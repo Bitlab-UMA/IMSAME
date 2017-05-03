@@ -88,6 +88,11 @@ int main(int argc, char ** av){
 	    for(j=0;j<MAX_READ_SIZE;j++){
             table[i][j] = (struct cell *) malloc((1+MAX_WINDOW_SIZE)*sizeof(struct cell));
 		    if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
+            // Delete this 
+            uint64_t r;
+            for(r=0;r<MAX_WINDOW_SIZE+1;r++){
+                table[i][j][r].score = INT64_MIN;
+            }
 	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
     	my_x[i] = (unsigned char *) malloc(2*MAX_READ_SIZE * sizeof(unsigned char));
