@@ -41,7 +41,7 @@ int main(int argc, char ** av){
 
     //query to read kmers from, database to find seeds
     FILE * query = NULL, * database = NULL, * out_database = NULL;
-    long double minevalue = 1/powl(10, 20); //Default 1 * 10^-20
+    long double minevalue = 1/powl(10, 10); //Default 1 * 10^-10
     
     long double mincoverage = 0.5, minidentity = 0.5, window = 0.15; //Default
     int igap = -5, egap = -2;
@@ -92,6 +92,8 @@ int main(int argc, char ** av){
             uint64_t r;
             for(r=0;r<MAX_WINDOW_SIZE+1;r++){
                 table[i][j][r].score = INT64_MIN;
+                table[i][j][r].xfrom = 10000000000;
+                table[i][j][r].yfrom = 10000000000;
             }
 	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
@@ -566,7 +568,7 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           IMSAME -query [query] -db [database]\n");
             fprintf(stdout, "OPTIONAL:\n");
             fprintf(stdout, "           -n_threads  [Integer:   0<n_threads] (default 4)\n");
-            fprintf(stdout, "           -evalue     [Double:    0<=pval<1] (default: 1 * 10^-20)\n");
+            fprintf(stdout, "           -evalue     [Double:    0<=pval<1] (default: 1 * 10^-10)\n");
             fprintf(stdout, "           -coverage   [Double:    0<coverage<=1 (default: 0.5)\n");
             fprintf(stdout, "           -identity   [Double:    0<identity<=1 (default: 0.5)\n");
             fprintf(stdout, "           -igap       [Integer:   (default: 5)\n");
