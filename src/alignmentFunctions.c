@@ -252,7 +252,7 @@ typedef struct {
                         #endif
 
                         //fprintf(stdout, "dbFragxs %"PRIu64", dbs %"PRIu64", rFragys %"PRIu64" rys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
-                        fprintf(stdout, "Launching NW %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": \n", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                        //fprintf(stdout, "Launching NW %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": \n", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
 
                         p1.x = qf.x_start - hta->database->start_pos[curr_db_seq];
                         //p1.y = qf.y_start - hta->query->start_pos[curr_read];
@@ -265,12 +265,14 @@ typedef struct {
                         calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
 
                         // REMOVE
+                        /*
                         uint64_t r1,r2;
                         for(r1=0;r1<MAX_WINDOW_SIZE;r1++){
                             for(r2=0;r2<MAX_WINDOW_SIZE;r2++){
                                 hta->table[r1][r2].score = INT64_MIN;
                             }
                         }
+                        */
                         
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
@@ -641,10 +643,11 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
     struct best_cell bc;
     bc.c.score = INT64_MIN;
+    bc.c.xpos = 0; bc.c.ypos = 0;
     
     //The window size will be a +-15% of the square root of the product of lengths
     int64_t window_size = MIN(MAX_WINDOW_SIZE/2, (uint64_t) (*window * sqrtl((long double) Xend * (long double) Yend)));
-    printf("xlen: %"PRIu64", ylen: %"PRIu64" w-size: %"PRId64"\n", Xend, Yend, window_size);    
+    //printf("xlen: %"PRIu64", ylen: %"PRIu64" w-size: %"PRId64"\n", Xend, Yend, window_size);    
     *current_window_size = (uint64_t) window_size;
 
     //The limits to the window
@@ -692,7 +695,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     //Go through full matrix
     for(i=1;i<Xend;i++){
         //Fill first rowcell
-        if(cell_path_y[i-1]+window_size < cell_path_y[i]) terror("Sequence proportions make window shift too large");
+        if(cell_path_y[i-1]+window_size < cell_path_y[i]) return bc; //terror("Sequence proportions make window shift too large");
         //Conversion for the j-coordinate
         j_prime = 1;
 
@@ -930,7 +933,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     #ifdef VERBOSE
     printf("Optimum : %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
     #endif
-    printf("Optimum : %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
+    //printf("Optimum : %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
     
     prev_x = curr_x;
     prev_y = curr_y;
