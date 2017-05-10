@@ -27,7 +27,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 #define PIECE_OF_DB_REALLOC 3200000 //half a gigabyte if divided by 8 bytes
 
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window);
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp);
 
 int VERBOSE_ACTIVE = 0;
 
@@ -45,9 +45,10 @@ int main(int argc, char ** av){
     
     long double mincoverage = 0.5, minidentity = 0.5, window = 0.15; //Default
     int igap = -5, egap = -2;
+    unsigned char full_comp = FALSE;
 
     uint64_t n_threads = 4;
-    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window);
+    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp);
     
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
@@ -75,6 +76,8 @@ int main(int argc, char ** av){
     unsigned char ** my_x = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
     unsigned char ** my_y = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
 
+    unsigned char ** marker_taggs = NULL; // To be used with full comparison
+
     struct positioned_cell ** mc = (struct positioned_cell **) malloc(n_threads * sizeof(struct positioned_cell *));
     struct cell *** table = (struct cell ***) malloc(n_threads * sizeof(struct cell **));
     if(table == NULL) terror("Could not allocate NW table");
@@ -89,12 +92,14 @@ int main(int argc, char ** av){
             table[i][j] = (struct cell *) malloc((1+MAX_WINDOW_SIZE)*sizeof(struct cell));
 		    if(table[i][j] == NULL) terror("Could not allocate memory for second loop of table");
             // Delete this 
+            /*
             uint64_t r;
             for(r=0;r<MAX_WINDOW_SIZE+1;r++){
                 table[i][j][r].score = INT64_MIN;
                 table[i][j][r].xfrom = 10000000000;
                 table[i][j][r].yfrom = 10000000000;
             }
+            */
 	    }
     	mc[i] = (struct positioned_cell *) malloc(MAX_READ_SIZE * sizeof(struct positioned_cell));
     	my_x[i] = (unsigned char *) malloc(2*MAX_READ_SIZE * sizeof(unsigned char));
@@ -314,6 +319,15 @@ int main(int argc, char ** av){
     //close database
     fclose(database);
 
+    // If FULL comparison is performed, allocate memory for the marker taggs
+    if(full_comp == TRUE){
+        marker_taggs = (unsigned char **) malloc(n_threads * sizeof(unsigned char *));
+        if(marker_taggs == NULL) terror("Could not allocate marker taggs");
+        for(i=0;i<n_threads;i++){
+            marker_taggs[i] = (unsigned char *) malloc(data_database.n_seqs);
+            if(marker_taggs[i] == NULL) terror("Could not allocate second loop of marker taggs");
+        }
+    }
 
     
     begin = clock();
@@ -481,6 +495,10 @@ int main(int argc, char ** av){
         hta[i].my_y = my_y[i];
         hta[i].queue_head = &queue_head;
         hta[i].lock = &lock;
+        hta[i].full_comp = full_comp;
+        if(full_comp){
+            hta[i].markers = marker_taggs[i];
+        }
 
         //if(i==n_threads-1) hta[i].to = data_query.n_seqs;
 
@@ -534,8 +552,14 @@ int main(int argc, char ** av){
         free(my_x[i]);
         free(my_y[i]);
         free(writing_buffer_alignment[i]);
+
+        if(full_comp == TRUE){
+            free(marker_taggs[i]);
+        }
         
     }
+    if(full_comp == TRUE) free(marker_taggs);
+
     
     free(table);
     free(mc);
@@ -558,7 +582,7 @@ int main(int argc, char ** av){
     return 0;
 }
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window){
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp){
 
     int pNum = 0;
     while(pNum < argc){
@@ -575,10 +599,12 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           -egap       [Integer:   (default: 2)\n");
             fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)");
             fprintf(stdout, "           -out        [File path]\n");
+            fprintf(stdout, "           --full      Does not stop at first match and reports all equalities\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");
             fprintf(stdout, "           --help      Shows help for program usage\n");
             exit(1);
         }
+        if(strcmp(av[pNum], "--full") == 0) *full_comp = TRUE;
         if(strcmp(av[pNum], "-query") == 0){
             *query = fopen64(av[pNum+1], "rt");
             if(query==NULL) terror("Could not open query file");

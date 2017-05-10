@@ -30,6 +30,8 @@ typedef struct {
     unsigned char * my_y;
     Head * queue_head;  //To tell where the queue starts after modifications
     pthread_mutex_t * lock;
+    unsigned char full_comp; // Tells whether read reporting should stop at first match or keep reporting
+    unsigned char * markers; // To tell which sequences were already used
 } HashTableArgs;
 
 

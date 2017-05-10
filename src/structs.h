@@ -20,6 +20,9 @@
 #define POOL_SIZE 12500000 // 1 GB if 16 bytes
 #define MAX_MEM_POOLS 256 
 
+#define FALSE 0
+#define TRUE 1
+
 
 //Struct for linked list of positions
 typedef struct linked_list_pos{

@@ -92,6 +92,7 @@ typedef struct {
     uint64_t up_to;
 
     int64_t last_diagonal = INT64_MIN; // Diagonal to skip repeated hits
+    unsigned char already_aligned = FALSE; // To not count more times the same read
     
 
     //Get next operation in queue
@@ -113,7 +114,8 @@ typedef struct {
         alignments_tried = 0;
 
         ba.identities = 0; ba.length = 0; ba.igaps = 0xFFFFFFFFFFFFFFFF; ba.egaps = 0xFFFFFFFFFFFFFFFF;
-
+        if(hta->full_comp == TRUE) memset(&hta->markers[0], 0, hta->database->n_seqs); // Reset used tags
+        already_aligned = FALSE;
 
         //Set current header position at the position of the read start (the ">")
         curr_pos = hta->query->start_pos[curr_read]; //Skip the ">"
@@ -130,15 +132,21 @@ typedef struct {
                 #ifdef VERBOSE
                 printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);
                 #endif
+                //if(NWaligned == 0){ printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned); getchar();}
                 //printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned); if(NWaligned == 0) getchar();
                 NWaligned = 0;
                 //fprintf(stdout, "Seq %"PRIu64" has %"PRIu64" hits and tried to align %"PRIu64" times\n", curr_read, n_hits, alignments_tried);
                 //fflush(stdout);
                 n_hits = 0;
+                already_aligned = FALSE;
                 alignments_tried = 0;
                 last_diagonal = INT64_MIN; // This is not perfect but if the diagonal reaches the value then we have an overflow anyway
                 qf.x_start = 0;
                 qf.t_len = 0;
+
+                //if(hta->full_comp == TRUE) memset(&hta->markers[my_current_task->r1], 0, my_current_task->r2 - my_current_task->r1 + 1); // Reset used tags
+                if(hta->full_comp == TRUE) memset(&hta->markers[0], 0, hta->database->n_seqs); // Reset used tags
+
                 curr_read++;
                 continue;
             }
@@ -162,12 +170,20 @@ typedef struct {
                 //While there are hits
                 //fprintf(stdout, "%p\n", aux);
                 //fflush(stdout);
-                while(aux != NULL && NWaligned == 0){
+
+                
+                
+
+                while(aux != NULL && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id] == 0))){
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
                     curr_db_seq = aux->s_id;
                     pos_of_hit = aux->pos;
+                    
+                    /*
+                    if(curr_read == 534) fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                    */
                     #ifdef VERBOSE 
                     fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
                     #endif 
@@ -247,6 +263,7 @@ typedef struct {
                         if(xlen > MAX_READ_SIZE || ylen > MAX_READ_SIZE){ printf("(%"PRIu64",%"PRIu64")\n", xlen, ylen); terror("Read size reached for gapped alignment."); }
                         //fprintf(stdout, "R0 %"PRIu64", %"PRIu64"\n", curr_db_seq, curr_read);
                         
+                        
                         #ifdef VERBOSE 
                         fprintf(stdout, "qfxs %"PRIu64", dbs %"PRIu64", qfys %"PRIu64" qys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
                         #endif
@@ -276,6 +293,8 @@ typedef struct {
                         
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
+                        
+                        
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
                         printf("ident %"PRIu64"\n", ba.identities);
@@ -283,7 +302,12 @@ typedef struct {
 
                         //If is good
                         if(((long double)(ba.length-(ba.igaps+ba.egaps))/ylen) >= hta->min_coverage && ((long double)ba.identities/(ba.length-(ba.igaps+ba.egaps))) >=  hta->min_identity){
-                            hta->accepted_query_reads++;   
+                            if(already_aligned == FALSE){
+                                hta->accepted_query_reads++;
+                                already_aligned = TRUE;
+                            }
+                            
+                            if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
                                 fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), ylen);
@@ -312,7 +336,7 @@ typedef struct {
                 }
                 //printf("SWITCHED\n");
 
-                if(NWaligned == 1){
+                if(NWaligned == 1 && hta->full_comp == FALSE){
                     if(curr_read < hta->query->n_seqs) curr_pos = hta->query->start_pos[curr_read+1]-2;
                 }else{
                     memcpy(b_aux, curr_kmer, FIXED_K);
