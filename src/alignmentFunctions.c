@@ -310,7 +310,7 @@ typedef struct {
                             if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
-                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)(100*(ba.identities-(ba.igaps+ba.egaps))/ylen)), ylen);
+                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)((long double)100*ba.identities/(ba.length-(ba.igaps+ba.egaps)))), ylen);
                                 fprintf(hta->out, "%s", hta->writing_buffer_alignment);
                                 //fprintf(stdout, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*ba.identities/ba.length)), MIN(100,(int)(100*ba.length/ylen)), ylen);
                                 //fprintf(stdout, "%s", hta->writing_buffer_alignment);
