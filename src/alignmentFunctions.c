@@ -293,7 +293,7 @@ typedef struct {
                         
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
-                        
+                         
                         
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
@@ -310,7 +310,7 @@ typedef struct {
                             if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
-                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), ylen);
+                                fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)(100*(ba.identities-(ba.igaps+ba.egaps))/ylen)), ylen);
                                 fprintf(hta->out, "%s", hta->writing_buffer_alignment);
                                 //fprintf(stdout, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*ba.identities/ba.length)), MIN(100,(int)(100*ba.length/ylen)), ylen);
                                 //fprintf(stdout, "%s", hta->writing_buffer_alignment);
