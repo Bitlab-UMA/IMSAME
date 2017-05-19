@@ -8,6 +8,7 @@ typedef struct container{
 
 
 typedef struct {
+    uint64_t id;        //The thread id
     SeqInfo * database; //Database sequence and lengths
     SeqInfo * query;    //Query sequence and lengths
     uint64_t from;      //Starting READ to compute alignments from

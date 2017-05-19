@@ -473,6 +473,7 @@ int main(int argc, char ** av){
     
 
     for(i=0;i<n_threads;i++){
+        hta[i].id = i;
         hta[i].database = &data_database;
         hta[i].query = &data_query;
         //hta[i].from = i * reads_per_thread;

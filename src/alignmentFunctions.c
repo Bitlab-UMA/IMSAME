@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <pthread.h>
 #include <inttypes.h>
 #include <math.h>
 #include <float.h>
@@ -145,7 +146,7 @@ typedef struct {
                 qf.t_len = 0;
 
                 //if(hta->full_comp == TRUE) memset(&hta->markers[my_current_task->r1], 0, my_current_task->r2 - my_current_task->r1 + 1); // Reset used tags
-                if(hta->full_comp == TRUE) memset(&hta->markers[0], 0, hta->database->n_seqs); // Reset used tags
+                if(hta->full_comp == TRUE) memset(&hta->markers[0], FALSE, hta->database->n_seqs); // Reset used tags
 
                 curr_read++;
                 continue;
@@ -221,8 +222,13 @@ typedef struct {
                         */
                         //printf("prev_diag: %"PRId64"- currdiag: %"PRId64"\n", last_diagonal, curr_diagonal);
                         //printf("\t covers to [%"PRIu64"+%"PRIu64"=%"PRIu64"] [%"PRIu64"] \n", qf.x_start, qf.t_len, qf.x_start+qf.t_len, pos_of_hit); getchar();
-                        alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
-                        last_diagonal = curr_diagonal;
+                        if(hta->full_comp == FALSE || (hta->full_comp == TRUE && hta->markers[aux->s_id] == FALSE)){
+                            alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
+                            last_diagonal = curr_diagonal;
+                        }else{
+                            qf.e_value = 100000000;
+                        }
+                        
                         //if(curr_read == 35) printf(" evalue: %Le from %"PRIu64", %"PRIu64" with l: %"PRIu64"\n", qf.e_value, qf.x_start, qf.y_start, qf.t_len);
                     }else{
                         
@@ -233,7 +239,7 @@ typedef struct {
                             printf("\t covers to [%"PRIu64"+%"PRIu64"=%"PRIu64"] [%"PRIu64"] \n", qf.x_start, qf.t_len, qf.x_start+qf.t_len, pos_of_hit); getchar();
                         }*/
                         
-                        qf.e_value = 10000000;
+                        qf.e_value = 100000000;
                     }
 
                     #ifdef VERBOSE 
@@ -293,7 +299,8 @@ typedef struct {
                         
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
-                         
+                        // Set the read to already aligned so that it does not repeat
+                        if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
                         
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
@@ -690,6 +697,8 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     mc[0].score = table[0][0].score;
     mc[0].xpos = 0;
     mc[0].ypos = 0;
+    
+    if(Xend == 1374 && Yend == 1992) printf("I am %p The count is real %.5s %.5s %p %p \n", &table[0][0], X, Y, X, Y);
 
     
     for(i=1;i<Yend;i++){
@@ -880,15 +889,15 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //if(i == 94){ printf("showing j %"PRIu64" jprime %"PRIu64" lleft %"PRIu64", llright %"PRIu64"\n", j, j_prime, limit_left, limit_right); getchar(); }
             //if(i == 94 && j == 374){ printf("stopped at 94, 374 s %"PRId64"\n", table[i][j_prime].score); getchar(); }
             
-            /*
-            if(i == 8305 && j == 624){
+            
+            if(i == 104 && j == 497 && cell_path_y[i] == 104){
                 printf("in position @ jprime= %"PRIu64" cellpaths [i-1, i] are %"PRId64", %"PRId64"\n", j_prime, cell_path_y[i-1], cell_path_y[i]);
                 printf("Scores %"PRId64", %"PRId64", %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
                 printf("score comes from %"PRIu64", %"PRIu64",\n", mc[j-1].xpos, mc[j-1].ypos);
                 
                 exit(-1);
             }
-            */
+            
 
             /*
             if(i == 264 && j == 176){
@@ -914,7 +923,12 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             		table[i][j_prime].score = table[i][j_prime].score + iGap + (Xend - i)*eGap;
             	}
                 //Check for best cell
-                if(table[i][j_prime].score >= bc.c.score){ bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime; }
+                if(table[i][j_prime].score >= bc.c.score){ 
+                    if(i == 1373 && j == 1767){
+                        printf("its me %"PRIu64", %"PRIu64",\n", Xend, Yend); exit(-1);
+                    }
+                    bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime; 
+                }
                 //bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime;
             }
             
@@ -986,6 +1000,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 printf("window size: %"PRIu64"\n", window_size);
                 printf("cp[i-1, i] : %"PRId64", %"PRId64"\n", cell_path_y[prev_x], cell_path_y[curr_x]);
                 printf("my cell path: %"PRId64"\n", cell_path_y[curr_x]);
+                printf("Optimum : %"PRIu64", %"PRIu64"\n", bc->c.xpos, bc->c.ypos);
                 getchar();
             }
             
