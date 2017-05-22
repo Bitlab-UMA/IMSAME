@@ -246,10 +246,13 @@ typedef struct {
                     printf(" evalue: %Le %"PRIu64"\n", qf.e_value, qf.t_len);
                     #endif
                     //getchar();
+
+
                     
 
+
                     //If e-value of current frag is good, then we compute a good gapped alignment
-                    if(qf.e_value < hta->min_e_value){
+                    if(qf.e_value < hta->min_e_value /*&& xlen == 799 && ylen == 2497*/){
                         alignments_tried++;
                         ba.identities = ba.length = ba.igaps = ba.egaps = 0;
                         //Compute lengths of reads
@@ -654,6 +657,15 @@ void calculate_y_cell_path(Point p0, Point p1, Point p2, Point p3, int64_t * y_p
         }
     }
 
+    /*
+    if(p3.x == 799 && p3.y == 2497){
+        for(i=0;i<p3.x;i++){
+            printf("%"PRIu64": %"PRIu64"\n", i, y_points[i]);
+            if(i % 50 == 0) getchar();
+        }    
+    }
+    */
+
     #ifdef VERBOSE
     for(i=0;i<p3.x;i++){
         printf("%"PRIu64" -> ", y_points[i]);
@@ -698,7 +710,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     mc[0].xpos = 0;
     mc[0].ypos = 0;
     
-    if(Xend == 1374 && Yend == 1992) printf("I am %p The count is real %.5s %.5s %p %p \n", &table[0][0], X, Y, X, Y);
+    //if(Xend == 799 && Yend == 2497) printf("I am %p The count is real %.5s %.5s %p %p \n", &table[0][0], X, Y, X, Y);
 
     
     for(i=1;i<Yend;i++){
@@ -774,7 +786,12 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
         }
         #endif
 
-        
+        /*
+        if(Xend == 799 && Yend == 2497 && i >= 145 && i <= 155){
+                printf("them limits @i %"PRIu64"::: %"PRIu64", %"PRIu64"\n", i, MAX(1,(cell_path_y[i] - window_size)), MIN(Yend,(cell_path_y[i] + window_size)));
+                getchar();
+        }
+        */
         
 
         for(j=MAX(1,(cell_path_y[i] - window_size));j<MIN(Yend,(cell_path_y[i] + window_size)) && j_prime < limit_right;j++){
@@ -791,7 +808,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 j_right_prime = ((int64_t)j_prime - (1 - (delta_dif_1_0 + delta_dif_2_1)));
             }
 
-            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && j_left_prime >= limit_left && j_left_prime < limit_right && table[i-1][j_left_prime].score >= mf.score){
+            if(j > MAX(1, cell_path_y[i-1] - window_size +1) && j < MIN(Yend,(cell_path_y[i-1] + window_size)) && j_left_prime < limit_right && table[i-1][j_left_prime].score >= mf.score){
                 //mf.score = table[i-1][j-2].score;
                 mf.score = table[i-1][j_left_prime].score;
                 mf.xpos = i-1;
@@ -846,6 +863,15 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 scoreRight = INT64_MIN;
             }
             
+            /*
+            if(Xend == 799 && Yend == 2497 && i >= 152 && i == 153){
+                printf("@%"PRIu64", %"PRIu64" -> scores: %"PRId64", %"PRId64", %"PRId64"\n", i, j, scoreDiagonal, scoreRight, scoreLeft);
+                printf("in position @ jprime= %"PRIu64" cellpaths [i-2, i-1, i] are %"PRId64", %"PRId64", %"PRId64", window_size: %"PRId64", j_diag_prime: %"PRId64"\n", j_prime, cell_path_y[i-2], cell_path_y[i-1], cell_path_y[i], window_size, j_diag_prime);
+                printf("Mfs from scoreLeft: mf.x\t%"PRIu64"\tmf.y\t%"PRIu64"\ts%"PRId64"\n", mf.xpos, mf.ypos, mf.score);
+                getchar();
+            }
+            */
+
             //Choose maximum
             /*
             #ifdef VERBOSE
@@ -890,14 +916,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             //if(i == 94 && j == 374){ printf("stopped at 94, 374 s %"PRId64"\n", table[i][j_prime].score); getchar(); }
             
             
-            if(i == 104 && j == 497 && cell_path_y[i] == 104){
-                printf("in position @ jprime= %"PRIu64" cellpaths [i-1, i] are %"PRId64", %"PRId64"\n", j_prime, cell_path_y[i-1], cell_path_y[i]);
-                printf("Scores %"PRId64", %"PRId64", %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
-                printf("score comes from %"PRIu64", %"PRIu64",\n", mc[j-1].xpos, mc[j-1].ypos);
-                
-                exit(-1);
-            }
-            
+                       
 
             /*
             if(i == 264 && j == 176){
@@ -924,9 +943,18 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
             	}
                 //Check for best cell
                 if(table[i][j_prime].score >= bc.c.score){ 
-                    if(i == 1373 && j == 1767){
-                        printf("its me %"PRIu64", %"PRIu64",\n", Xend, Yend); exit(-1);
+                    
+                    /*
+                    if(i == 798 && j == 1052){ // yields 799, 2497
+                        printf("in position @ jprime= %"PRIu64" cellpaths [i-1, i] are %"PRId64", %"PRId64"\n", j_prime, cell_path_y[i-1], cell_path_y[i]);
+                        printf("Scores %"PRId64", %"PRId64", %"PRId64"\n", scoreDiagonal, scoreLeft, scoreRight);
+                        printf("score comes from %"PRIu64", %"PRIu64",\n", mc[j-1].xpos, mc[j-1].ypos);
+                        printf("IDlengths: %"PRIu64", %"PRIu64"\n", Xend, Yend);
+                        
+                        //exit(-1);
                     }
+                    */
+                    
                     bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime; 
                 }
                 //bc.c.score = table[i][j_prime].score; bc.c.xpos = i; bc.c.ypos = j; bc.j_prime = j_prime;
@@ -998,7 +1026,7 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
                 printf("jp: %"PRIu64", py,cy %"PRIu64", %"PRIu64", delta: %"PRId64"\n", j_prime, prev_y, curr_y, (int64_t)delta_diff);
                 printf("currx curry : %"PRIu64", %"PRIu64"\n", curr_x, curr_y);
                 printf("window size: %"PRIu64"\n", window_size);
-                printf("cp[i-1, i] : %"PRId64", %"PRId64"\n", cell_path_y[prev_x], cell_path_y[curr_x]);
+                printf("cp[prev, curr] : %"PRId64", %"PRId64"\n", cell_path_y[prev_x], cell_path_y[curr_x]);
                 printf("my cell path: %"PRId64"\n", cell_path_y[curr_x]);
                 printf("Optimum : %"PRIu64", %"PRIu64"\n", bc->c.xpos, bc->c.ypos);
                 getchar();
@@ -1008,6 +1036,14 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
 
             prev_x = curr_x;
             prev_y = curr_y;
+
+            /*
+            if(bc->c.xpos == 798 && bc->c.ypos == 1052){
+                printf("[%c %c]", X[prev_x], Y[prev_y]);
+                printf("(%"PRIu64", %"PRIu64") ::: \n", curr_x, curr_y);
+
+            }
+            */
 
             #ifdef VERBOSE
             //printf("Jprime: %"PRId64" :DELTADIF:%"PRId64"\n", j_prime, delta_diff);
