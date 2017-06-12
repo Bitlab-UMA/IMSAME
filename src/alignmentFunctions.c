@@ -715,7 +715,7 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     
     for(i=1;i<Yend;i++){
         //table[0][i].score = (X[0] == Y[i]) ? POINT : -POINT;
-        if(i < (uint64_t)(cell_path_y[0] + window_size)) table[0][i].score = compare_letters(X[0], Y[i]) + iGap + (i-1)*eGap;
+        if(i < MAX_WINDOW_SIZE) table[0][i].score = compare_letters(X[0], Y[i]) + iGap + (i-1)*eGap;
         //table[Xstart][i].xfrom = Xstart;
         //table[Xstart][i].yfrom = i;
         //Set every column max
