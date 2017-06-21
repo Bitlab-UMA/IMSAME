@@ -26,8 +26,9 @@ USAGE       Usage is described by calling ./IMSAME --help
 #define STARTING_SEQS 1000
 #define PIECE_OF_DB_REALLOC 3200000 //half a gigabyte if divided by 8 bytes
 
+uint64_t custom_kmer = 12; // Defined as external in structs.h
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp);
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer);
 
 int VERBOSE_ACTIVE = 0;
 
@@ -48,7 +49,8 @@ int main(int argc, char ** av){
     unsigned char full_comp = FALSE;
 
     uint64_t n_threads = 4;
-    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp);
+
+    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp, &custom_kmer);
     
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
@@ -135,7 +137,7 @@ int main(int argc, char ** av){
     uint64_t * database_positions = (uint64_t *) malloc(INITSEQS*sizeof(uint64_t));
     if(database_positions == NULL) terror("Could not allocate database sequences positions");
 
-    unsigned char curr_kmer[FIXED_K];
+    unsigned char curr_kmer[custom_kmer];
     curr_kmer[0] = '\0';
     uint64_t word_size = 0, pos_in_database = 0, n_seqs_database_realloc = 1;
 
@@ -158,7 +160,7 @@ int main(int argc, char ** av){
     init_mem_pool_llpos(&mp[n_pools_used]);
     llpos * aux, * pointer;
 
-    unsigned char aux_kmer[FIXED_K+1];
+    unsigned char aux_kmer[custom_kmer+1];
     
     //Vector to store query seq
     unsigned char * seq_vector_query = (unsigned char *) malloc(READBUF*sizeof(unsigned char));
@@ -232,7 +234,7 @@ int main(int argc, char ** av){
                 c = toupper(c);
                 if(c == 'A' || c == 'C' || c == 'G' || c == 'T'){
                     curr_kmer[word_size] = (unsigned char) c;
-                    if(word_size < FIXED_K) word_size++;
+                    if(word_size < custom_kmer) word_size++;
                     data_database.sequences[pos_in_database++] = (unsigned char) c;
             
                     if(pos_in_database == READBUF*n_realloc_database){ 
@@ -252,7 +254,7 @@ int main(int argc, char ** av){
                         }
                     } 
                 }
-                if(word_size == FIXED_K){
+                if(word_size == custom_kmer){
                     //write to hash table
                     
 		
@@ -261,6 +263,7 @@ int main(int argc, char ** av){
                     [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
                     [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
+                    
 
                     if(pointer == NULL){
 
@@ -268,6 +271,8 @@ int main(int argc, char ** av){
                         
 
                         pointer->pos = pos_in_database;
+
+                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
 
                         pointer->s_id = data_database.n_seqs-1;
 
@@ -286,10 +291,9 @@ int main(int argc, char ** av){
                         pointer = getNewLocationllpos(mp, &n_pools_used);
 
                         pointer->pos = pos_in_database;
+                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
                         pointer->s_id = data_database.n_seqs-1;
                         pointer->next = aux;
-
-                        
 
                     }
 
@@ -298,8 +302,8 @@ int main(int argc, char ** av){
                     [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
                     [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
 		
-		            memcpy(aux_kmer, &curr_kmer[1], FIXED_K-1);
-                    memcpy(curr_kmer, aux_kmer, FIXED_K-1);
+		            memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+                    memcpy(curr_kmer, aux_kmer, custom_kmer-1);
                     word_size--;
                 }
             }
@@ -376,12 +380,12 @@ int main(int argc, char ** av){
                     data_query.sequences[pos_in_query++] = (unsigned char) c;
                     curr_kmer[word_size++] = (unsigned char) c;
                     
-                    if(word_size == FIXED_K){
-                        memcpy(aux_kmer, curr_kmer, FIXED_K);
-                        aux_kmer[FIXED_K] = '\0';
+                    if(word_size == custom_kmer){
+                        memcpy(aux_kmer, curr_kmer, custom_kmer);
+                        aux_kmer[custom_kmer] = '\0';
                         
-                        memcpy(aux_kmer, &curr_kmer[1], FIXED_K-1);
-                        memcpy(curr_kmer, aux_kmer, FIXED_K-1);
+                        memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+                        memcpy(curr_kmer, aux_kmer, custom_kmer-1);
                         word_size--;
                     }
             
@@ -583,7 +587,7 @@ int main(int argc, char ** av){
     return 0;
 }
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp){
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer){
 
     int pNum = 0;
     while(pNum < argc){
@@ -598,7 +602,8 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           -identity   [Double:    0<identity<=1 (default: 0.5)\n");
             fprintf(stdout, "           -igap       [Integer:   (default: 5)\n");
             fprintf(stdout, "           -egap       [Integer:   (default: 2)\n");
-            fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)");
+            fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)\n");
+            fprintf(stdout, "           -kmer       [Integer:   k>1 (default 12)]\n");
             fprintf(stdout, "           -out        [File path]\n");
             fprintf(stdout, "           --full      Does not stop at first match and reports all equalities\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");
@@ -643,6 +648,10 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
         if(strcmp(av[pNum], "-n_threads") == 0){
             *n_threads = (uint64_t) atoi(av[pNum+1]);
             if(*n_threads < 0) terror("Number of threads must be larger than zero");
+        }
+        if(strcmp(av[pNum], "-kmer") == 0){
+            *custom_kmer = (uint64_t) atoi(av[pNum+1]);
+            if(*custom_kmer < 2) terror("K-mer size must be larger than 1");
         }
         pNum++;
     }

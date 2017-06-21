@@ -27,4 +27,10 @@ void print_queue(Queue * q);
 */
 Queue * get_task_from_queue(Head * queue_head, pthread_mutex_t * lock);
 
+uint64_t quick_pow4(uint64_t n);
+
+uint64_t quick_pow4byLetter(uint64_t n, const char c);
+
+uint64_t hashOfWord(const unsigned char * word, uint32_t k);
+
 #endif /* COMMON_FUNCTIONS_H */

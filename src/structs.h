@@ -23,11 +23,13 @@
 #define FALSE 0
 #define TRUE 1
 
+extern uint64_t custom_kmer;
 
 //Struct for linked list of positions
 typedef struct linked_list_pos{
     uint64_t pos;
     uint64_t s_id;
+    uint64_t extended_hash;
     struct linked_list_pos * next;
 } llpos;
 

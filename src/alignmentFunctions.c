@@ -81,7 +81,7 @@ typedef struct {
 
     //Reading from buffer
     char c;
-    unsigned char curr_kmer[FIXED_K], b_aux[FIXED_K];
+    unsigned char curr_kmer[custom_kmer], b_aux[custom_kmer];
     llpos * aux;
 
     // For NW-alignment
@@ -159,7 +159,7 @@ typedef struct {
                 crrSeqL = 0;
             }
 
-            if (crrSeqL >= FIXED_K) { // Full well formed sequence
+            if (crrSeqL >= custom_kmer) { // Full well formed sequence
 
                 //fprintf(stdout, "%s\n", curr_kmer);
                 //fflush(stdout);
@@ -173,9 +173,8 @@ typedef struct {
                 //fflush(stdout);
 
                 
-                
 
-                while(aux != NULL && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id] == 0))){
+                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id] == 0))){
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
@@ -192,7 +191,7 @@ typedef struct {
 
                     
                     
-                    if( (last_diagonal != curr_diagonal && !(qf.x_start <= (pos_of_hit + FIXED_K) && pos_of_hit <= (qf.x_start + qf.t_len)))/* && (curr_read == 3 && curr_db_seq == 2942)*/){
+                    if( (last_diagonal != curr_diagonal && !(qf.x_start <= (pos_of_hit + custom_kmer) && pos_of_hit <= (qf.x_start + qf.t_len)))/* && (curr_read == 3 && curr_db_seq == 2942)*/){
                         
                         /*
                         if(curr_db_seq == hta->database->n_seqs-1){
@@ -349,8 +348,8 @@ typedef struct {
                 if(NWaligned == 1 && hta->full_comp == FALSE){
                     if(curr_read < hta->query->n_seqs) curr_pos = hta->query->start_pos[curr_read+1]-2;
                 }else{
-                    memcpy(b_aux, curr_kmer, FIXED_K);
-                    memcpy(curr_kmer, &b_aux[1], FIXED_K-1);
+                    memcpy(b_aux, curr_kmer, custom_kmer);
+                    memcpy(curr_kmer, &b_aux[1], custom_kmer-1);
                     crrSeqL -= 1;
                 }
             }
@@ -375,8 +374,6 @@ typedef struct {
     //fprintf(stdout, "Going from %"PRIu64" to %"PRIu64"\n", hta->from, hta->to);
     //fflush(stdout);
 
-    
-    
     free(cell_path_y);
 
     return NULL;
@@ -484,12 +481,12 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 
     int64_t curr_pos_db = (int64_t) pos_database;
     int64_t curr_pos_qy = (int64_t) pos_query;
-    int64_t final_end_x = pos_database - 1, final_start_x = final_end_x - FIXED_K + 1, final_start_y = pos_query - FIXED_K;
-    int64_t score_right = FIXED_K * POINT;
+    int64_t final_end_x = pos_database - 1, final_start_x = final_end_x - custom_kmer + 1, final_start_y = pos_query - custom_kmer;
+    int64_t score_right = custom_kmer * POINT;
     int64_t score_left = score_right;
     int64_t high_left = score_left, high_right = score_right;
-    qf->t_len = FIXED_K;
-    uint64_t idents = FIXED_K;
+    qf->t_len = custom_kmer;
+    uint64_t idents = custom_kmer;
 
     /*
     char le_hit[1000];
@@ -523,8 +520,8 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
     //printf("pos here %"PRIu64" curr_pos_db, curr_pos_query %"PRIu64"\n", curr_pos_db, curr_pos_qy);
 
     keep_going = 1;
-    curr_pos_db = pos_database - FIXED_K - 1;
-    curr_pos_qy = pos_query - FIXED_K - 1;
+    curr_pos_db = pos_database - custom_kmer - 1;
+    curr_pos_qy = pos_query - custom_kmer - 1;
 
     score_left = high_right;
 
