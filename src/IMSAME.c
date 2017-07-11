@@ -543,7 +543,14 @@ int main(int argc, char ** av){
             for(j=1;j<n_threads;j++){
                 hta[0].hits[i] += hta[j].hits[i];
             }
-            if(out_database != NULL) fprintf(out_database, "%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i]);
+            if(out_database != NULL){
+                
+                if(i == data_database.n_seqs - 1){
+                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], data_database.total_len - data_database.start_pos[i]);
+                }else{
+                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], data_database.start_pos[i+1] - data_database.start_pos[i]);
+                }
+            }
         }
     }
     
