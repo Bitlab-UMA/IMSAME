@@ -28,7 +28,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 
 uint64_t custom_kmer = 12; // Defined as external in structs.h
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer);
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only);
 
 int VERBOSE_ACTIVE = 0;
 
@@ -47,10 +47,11 @@ int main(int argc, char ** av){
     long double mincoverage = 0.5, minidentity = 0.5, window = 0.15; //Default
     int igap = -5, egap = -2;
     unsigned char full_comp = FALSE;
+    unsigned char hits_only = FALSE;
 
     uint64_t n_threads = 4;
 
-    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp, &custom_kmer);
+    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp, &custom_kmer, &hits_only);
     
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
@@ -74,6 +75,9 @@ int main(int argc, char ** av){
     
     pthread_mutex_t lock; //The mutex to lock the queue
     if (pthread_mutex_init(&lock, NULL) != 0) terror("Could not init mutex");
+
+    // To be used if only computing hits
+    uint64_t ** hits_table = NULL;
 
     unsigned char ** my_x = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
     unsigned char ** my_y = (unsigned char **) malloc(n_threads * sizeof(unsigned char*));
@@ -332,6 +336,15 @@ int main(int argc, char ** av){
             if(marker_taggs[i] == NULL) terror("Could not allocate second loop of marker taggs");
         }
     }
+    if(hits_only == TRUE){
+        hits_table = (uint64_t **) calloc(n_threads, sizeof(uint64_t *));
+        if(hits_table == NULL) terror("Could not allocate hits table");
+        uint64_t z;
+        for(z=0;z<n_threads;z++){
+            hits_table[z] = (uint64_t *) calloc(data_database.n_seqs, sizeof(uint64_t));
+            if(hits_table[z] == NULL) terror("Could not allocate sub table of hits");
+        }
+    }
 
     
     begin = clock();
@@ -476,6 +489,7 @@ int main(int argc, char ** av){
     */
     
 
+
     for(i=0;i<n_threads;i++){
         hta[i].id = i;
         hta[i].database = &data_database;
@@ -504,6 +518,8 @@ int main(int argc, char ** av){
         if(full_comp){
             hta[i].markers = marker_taggs[i];
         }
+        if(hits_only) hta[i].hits = hits_table[i]; else hta[i].hits = NULL;
+        
 
         //if(i==n_threads-1) hta[i].to = data_query.n_seqs;
 
@@ -521,6 +537,16 @@ int main(int argc, char ** av){
     for(i=0;i<n_threads;i++){
         sum_accepted_reads += hta[i].accepted_query_reads;
     }
+    // Accumulate hits just in case
+    if(hits_only == TRUE){
+        for(i=0;i<data_database.n_seqs;i++){
+            for(j=1;j<n_threads;j++){
+                hta[0].hits[i] += hta[j].hits[i];
+            }
+            if(out_database != NULL) fprintf(out_database, "%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i]);
+        }
+    }
+    
     
     end = clock();
     fprintf(stdout, "[INFO] Alignments computed in %e seconds.\n", (double)(end-begin)/CLOCKS_PER_SEC);
@@ -533,6 +559,15 @@ int main(int argc, char ** av){
     if(out_database != NULL) fclose(out_database);
     free(temp_seq_buffer);
     
+
+    if(hits_only == TRUE){
+        // Write hits here
+        for(i=0;i<n_threads;i++){
+            free(hits_table[i]);
+        }
+        free(hits_table);
+    }
+
     free(data_database.sequences);
     free(data_database.start_pos);
     free(data_query.sequences);
@@ -542,6 +577,7 @@ int main(int argc, char ** av){
     free(threads);
     free(hta);
 
+    
     
     for(i=0;i<n_threads;i++){
         
@@ -587,7 +623,7 @@ int main(int argc, char ** av){
     return 0;
 }
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer){
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only){
 
     int pNum = 0;
     while(pNum < argc){
@@ -608,9 +644,11 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           --full      Does not stop at first match and reports all equalities\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");
             fprintf(stdout, "           --help      Shows help for program usage\n");
+            fprintf(stdout, "           --hits      Compute only the non-overlapping hits\n");
             exit(1);
         }
         if(strcmp(av[pNum], "--full") == 0) *full_comp = TRUE;
+        if(strcmp(av[pNum], "--hits") == 0) *hits_only = TRUE;
         if(strcmp(av[pNum], "-query") == 0){
             *query = fopen64(av[pNum+1], "rt");
             if(query==NULL) terror("Could not open query file");

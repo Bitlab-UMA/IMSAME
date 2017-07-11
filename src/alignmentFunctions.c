@@ -180,6 +180,11 @@ typedef struct {
                     //fflush(stdout);
                     curr_db_seq = aux->s_id;
                     pos_of_hit = aux->pos;
+                    if(hta->hits != NULL){
+                        hta->hits[curr_db_seq]++;
+                        goto only_hits; // Count only hits and skip the rest
+                    } 
+                    
                     
                     /*
                     if(curr_read == 534) fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
@@ -339,6 +344,7 @@ typedef struct {
                     //fprintf(hta->out, "%"PRIu64", %"PRIu64", %"PRIu64"\n", qf.x_start, qf.y_start, qf.t_len);
 
                     //printf("Hit comes from %"PRIu64", %"PRIu64"\n", pos_of_hit, curr_pos);
+                    only_hits:
                     aux = aux->next;
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);

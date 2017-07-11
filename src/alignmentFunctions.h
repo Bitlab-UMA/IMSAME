@@ -22,6 +22,7 @@ typedef struct {
     FILE * out; //File to write alignments out
     int igap;
     int egap;
+    uint64_t * hits;        // To work in hits mode only
     struct positioned_cell * mc;
     struct cell ** table;
     char * reconstruct_X;

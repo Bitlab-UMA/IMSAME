@@ -77,7 +77,7 @@ Queue * get_task_from_queue(Head * queue_head, pthread_mutex_t * lock){
 
     Queue * ptr = queue_head->head;
     if(queue_head->head != NULL) queue_head->head = queue_head->head->next;
-    if(ptr != NULL){ printf("Taking "); print_queue(ptr); }
+    //if(ptr != NULL){ printf("Taking "); /*print_queue(ptr);*/ }
 
     pthread_mutex_unlock(lock);
 
