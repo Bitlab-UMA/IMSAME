@@ -33,4 +33,6 @@ uint64_t quick_pow4byLetter(uint64_t n, const char c);
 
 uint64_t hashOfWord(const unsigned char * word, uint32_t k);
 
+uint64_t asciiToUint64(const char *text);
+
 #endif /* COMMON_FUNCTIONS_H */

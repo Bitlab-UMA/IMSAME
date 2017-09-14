@@ -28,7 +28,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 
 uint64_t custom_kmer = 12; // Defined as external in structs.h
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only);
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only, uint64_t * n_parts);
 
 int VERBOSE_ACTIVE = 0;
 
@@ -50,8 +50,9 @@ int main(int argc, char ** av){
     unsigned char hits_only = FALSE;
 
     uint64_t n_threads = 4;
+    uint64_t n_parts = 3; // Default is 3
 
-    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp, &custom_kmer, &hits_only);
+    init_args(argc, av, &query, &database, &out_database, &n_threads, &minevalue, &mincoverage, &igap, &egap, &minidentity, &window, &full_comp, &custom_kmer, &hits_only, &n_parts);
     
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
@@ -213,6 +214,7 @@ int main(int argc, char ** av){
 
 
     begin = clock();
+    //fprintf(stdout, "[INFO] WARNING!!!!!!!!! USING NON OVERLAPPING MERS, WHICH IS NOT INCLUDED AS OPTION!!!! DISABLE\n");
 
     c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);
     while((!feof(database) || (feof(database) && idx < r))){
@@ -306,9 +308,15 @@ int main(int argc, char ** av){
                     [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
                     [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
 		
-		            memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+
+		    // CURRENTLY USING OVERLAPPING
+		    
+		    memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
                     memcpy(curr_kmer, aux_kmer, custom_kmer-1);
                     word_size--;
+		    
+		    // For NON OVERLAPPING ENABLE THIS
+		    //word_size = 0;
                 }
             }
             word_size = 0;
@@ -462,7 +470,7 @@ int main(int argc, char ** av){
     begin = clock();
         
     Head queue_head;
-    Queue * first_task = generate_queue(&queue_head, data_query.n_seqs, n_threads, 3);
+    Queue * first_task = generate_queue(&queue_head, data_query.n_seqs, n_threads, n_parts);
 
     /*
     Queue * traverse = queue_head.head;
@@ -630,7 +638,7 @@ int main(int argc, char ** av){
     return 0;
 }
 
-void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only){
+void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only, uint64_t * n_parts){
 
     int pNum = 0;
     while(pNum < argc){
@@ -647,6 +655,7 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           -egap       [Integer:   (default: 2)\n");
             fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)\n");
             fprintf(stdout, "           -kmer       [Integer:   k>1 (default 12)]\n");
+	    fprintf(stdout, "		-n_parts    [Integer:	n>0 (default 3)]\n");
             fprintf(stdout, "           -out        [File path]\n");
             fprintf(stdout, "           --full      Does not stop at first match and reports all equalities\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");
@@ -656,6 +665,7 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
         }
         if(strcmp(av[pNum], "--full") == 0) *full_comp = TRUE;
         if(strcmp(av[pNum], "--hits") == 0) *hits_only = TRUE;
+	if(strcmp(av[pNum], "-n_parts") == 0) *n_parts = (uint64_t) atoi(av[pNum+1]);
         if(strcmp(av[pNum], "-query") == 0){
             *query = fopen64(av[pNum+1], "rt");
             if(query==NULL) terror("Could not open query file");

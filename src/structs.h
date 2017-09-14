@@ -6,7 +6,7 @@
 //Structs required for the dotplot workflow
 #define MAXLID 200
 //#define READBUF 2000000000 //2 GB
-#define READBUF 50000000 //50MB
+#define READBUF 500000000 //500MB
 #define INITSEQS 3000 //Number of starting sequences (in database)
 #define POINT 4
 
@@ -14,7 +14,7 @@
 
 #define MAXLID 200
 #define ALIGN_LEN 60 //For NW alignment
-#define MAX_READ_SIZE 20000 //Maximum length of read to have a portion of the table allocated
+#define MAX_READ_SIZE 335000 //Maximum length of read to have a portion of the table allocated
 #define MAX_WINDOW_SIZE 500 //Maximum window length to explore NW table
 //#define POOL_SIZE 2500000000 // by 16 bytes it is 40 GB
 #define POOL_SIZE 12500000 // 1 GB if 16 bytes

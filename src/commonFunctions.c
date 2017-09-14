@@ -9,7 +9,7 @@
 #include "structs.h"
 
 void terror(char *s) {
-    printf("ERR**** %s ****\n", s);
+    fprintf(stdout, "ERR**** %s ****\n", s);
     exit(-1);
 }
 
@@ -121,4 +121,15 @@ uint64_t hashOfWord(const unsigned char * word, uint32_t k){
         value += quick_pow4byLetter(k-(jIdx+1), (char) word[jIdx]);
     }
     return value;
+}
+
+
+uint64_t asciiToUint64(const char *text){
+	uint64_t number=0;
+
+	for(;*text;text++){
+		char digit=*text-'0';           
+		number=(number*10)+digit;
+	}
+	return number;
 }

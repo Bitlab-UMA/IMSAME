@@ -12,6 +12,8 @@ BINDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 array=()
 x=0
 
+echo "WARNING: FULL COMPARISON IS ENABLED"
+
 if [ $# != 6 ]; then
 	echo "***ERROR*** Use: $0 metagenomes_directory coverage similarity threads file_extension outpath"
 	exit -1
@@ -35,7 +37,11 @@ do
 			if [[ ! -f $6/${seqX}-${seqY}.align ]];	then #if the file does not exist
 
 				
-				${BINDIR}/IMSAME -query $DIR/${seqX}.$EXT -db $DIR/${seqY}.$EXT -n_threads $THR -coverage $COV -identity $SIM -out $6/${seqX}-${seqY}.align
+				${BINDIR}/IMSAME -query $DIR/${seqX}.$EXT -db $DIR/${seqY}.$EXT -n_threads $THR --full -coverage $COV -identity $SIM -out $6/${seqX}-${seqY}.align
+				grep "(" $6/${seqX}-${seqY}.align | awk '{print $4, $5, $6}' | sed 's/%//g' > $6/${seqX}-${seqY}.align.filtered
+
+				${BINDIR}/covident $6/${seqX}-${seqY}.align.filtered $6/${seqX}-${seqY}.align.filtered.mat
+
 			fi
 			
 			
@@ -45,7 +51,10 @@ do
 			if [[ ! -f $6/${seqX}-${seqY}.r.align ]];	then #if the reversed alignment does not exist
 				# Compute reverse complement
 				${BINDIR}/revComp $DIR/${seqY}.$EXT $DIR/${seqY}.r.${EXT}
-				${BINDIR}/IMSAME -query $DIR/${seqX}.$EXT -db $DIR/${seqY}.r.$EXT -n_threads $THR -coverage $COV -identity $SIM -out $6/${seqX}-${seqY}.r.align
+				${BINDIR}/IMSAME -query $DIR/${seqX}.$EXT -db $DIR/${seqY}.r.$EXT -n_threads $THR --full -coverage $COV -identity $SIM -out $6/${seqX}-${seqY}.r.align
+				grep "(" $6/${seqX}-${seqY}.r.align | awk '{print $4, $5, $6}' | sed 's/%//g' > $6/${seqX}-${seqY}.r.align.filtered
+				
+				${BINDIR}/covident $6/${seqX}-${seqY}.r.align.filtered $6/${seqX}-${seqY}.align.filtered.mat
 			
 			fi
 			

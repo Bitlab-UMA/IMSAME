@@ -13,7 +13,7 @@
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
 
-inline int64_t compare_letters(unsigned char a, unsigned char b){
+int64_t compare_letters(unsigned char a, unsigned char b){
     if(a != (unsigned char) 'N' && a != (unsigned char) '>') return (a == b) ? POINT : -POINT;
     return -POINT;
 }
