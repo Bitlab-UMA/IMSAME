@@ -26,6 +26,7 @@ USAGE       Usage is described by calling ./IMSAME --help
 #define STARTING_SEQS 1000
 #define PIECE_OF_DB_REALLOC 3200000 //half a gigabyte if divided by 8 bytes
 
+
 uint64_t custom_kmer = 12; // Defined as external in structs.h
 
 void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** out_database, uint64_t  * n_threads, long double * minevalue, long double * mincoverage, int * igap, int * egap, long double * minidentity, long double * window, unsigned char * full_comp, uint64_t * custom_kmer, unsigned char * hits_only, uint64_t * n_parts);
@@ -33,7 +34,10 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
 int VERBOSE_ACTIVE = 0;
 
 int main(int argc, char ** av){
+
+
     
+
 
     clock_t begin, end;
     
@@ -69,6 +73,9 @@ int main(int argc, char ** av){
 
     pthread_t * threads = (pthread_t *) malloc(n_threads * sizeof(pthread_t));
     if(threads == NULL) terror("Could not create threads");
+
+    pthread_t * loading_threads = (pthread_t *) malloc(FIXED_LOADING_THREADS * sizeof(pthread_t));
+    if(loading_threads == NULL) terror("Could not create loading threads");
 
 
     HashTableArgs * hta = (HashTableArgs *) malloc(n_threads*sizeof(HashTableArgs));
@@ -175,41 +182,44 @@ int main(int argc, char ** av){
     if(query_positions == NULL) terror("Could not allocate query sequences positions");
 
 
-    Container * ct = (Container *) calloc(1, sizeof(Container));
-    if(ct == NULL) terror("Could not allocate container");
+    Container * ct_A = (Container *) calloc(1, sizeof(Container));
+    if(ct == NULL) terror("Could not allocate container A");
+    Container * ct_C = (Container *) calloc(1, sizeof(Container));
+    if(ct == NULL) terror("Could not allocate container C");
+    Container * ct_G = (Container *) calloc(1, sizeof(Container));
+    if(ct == NULL) terror("Could not allocate container G");
+    Container * ct_T = (Container *) calloc(1, sizeof(Container));
+    if(ct == NULL) terror("Could not allocate container T");
     
+    
+    // Read number of sequences and load into RAM
+    begin = clock();
+    fseek(database, 0L, SEEK_END);
+    uint64_t db_temp_size = ftell(database);
+    char * load_buffer = (char *) malloc(db_temp_size * sizeof(char));
+    if(load_buffer == NULL) terror("Could not allocate intermediate buffer for threads sequence array");
+    fseek(database, 0L, SEEK_SET);
+
+    if(db_temp_size != fread(load_buffer, sizeof(char), db_temp_size, database)) terror("Could not read full sequence");
+
+    get_num_seqs_and_length(load_buffer, &data_database.n_seqs, &db_temp_size);
+
+    end = clock();
+    fprintf(stdout, "[INFO] Loading into RAM and counting took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
+
+    LoadingDBArgs args_DB_load;
     /*
-    uint64_t w0,w1,w2,w3,w4,w5,w6,w7,w8,w9,w10,w11;
-    for(w0=0;w0<4;w0++){
-        for(w1=0;w1<4;w1++){
-            for(w2=0;w2<4;w2++){
-                for(w3=0;w3<4;w3++){
-                    for(w4=0;w4<4;w4++){
-                        for(w5=0;w5<4;w5++){
-                            for(w6=0;w6<4;w6++){
-                                for(w7=0;w7<4;w7++){
-                                    for(w8=0;w8<4;w8++){
-                                        for(w9=0;w9<4;w9++){
-                                            for(w10=0;w10<4;w10++){
-                                                for(w11=0;w11<4;w11++){
-                                                    ct->table[w0][w1][w2][w3][w4][w5][w6][w7][w8][w9][w10][w11] = NULL;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    char * temp_seq_buffer;
+    SeqInfo * data_database;
+    uint64_t t_len;
+    uint64_t word_size;
+    uint64_t read_from;
+    uint64_t read_to;
     */
-
-
-
-
+    args_DB_load.temp_seq_buffer = load_buffer;
+    args_DB_load.data_database = &data_database;
+    args_DB_load.t_len = db_temp_size;
+    args_DB_load.word_size = custom_kmer;
 
 
 
@@ -303,20 +313,20 @@ int main(int argc, char ** av){
 
                     }
 
-                    ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                    [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                    [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                    [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
-		
+                ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
+                [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
+                [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
+                [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
+    
 
-		    // CURRENTLY USING OVERLAPPING
-		    
-		    memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
-                    memcpy(curr_kmer, aux_kmer, custom_kmer-1);
-                    word_size--;
-		    
-		    // For NON OVERLAPPING ENABLE THIS
-		    //word_size = 0;
+                // CURRENTLY USING OVERLAPPING
+                
+                memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+                memcpy(curr_kmer, aux_kmer, custom_kmer-1);
+                word_size--;
+                    
+                // For NON OVERLAPPING ENABLE THIS
+                //word_size = 0;
                 }
             }
             word_size = 0;
@@ -587,7 +597,10 @@ int main(int argc, char ** av){
     free(data_database.start_pos);
     free(data_query.sequences);
     free(data_query.start_pos);
-    free(ct->table);
+    free(ct_A->table);
+    free(ct_C->table);
+    free(ct_G->table);
+    free(ct_T->table);
     //free(ct);
     free(threads);
     free(hta);
@@ -655,7 +668,7 @@ void init_args(int argc, char ** av, FILE ** query, FILE ** database, FILE ** ou
             fprintf(stdout, "           -egap       [Integer:   (default: 2)\n");
             fprintf(stdout, "           -window     [Double:    0<window<=0.5 (default: 0.15)\n");
             fprintf(stdout, "           -kmer       [Integer:   k>1 (default 12)]\n");
-	    fprintf(stdout, "		-n_parts    [Integer:	n>0 (default 3)]\n");
+	        fprintf(stdout, "		-n_parts    [Integer:	n>0 (default 3)]\n");
             fprintf(stdout, "           -out        [File path]\n");
             fprintf(stdout, "           --full      Does not stop at first match and reports all equalities\n");
             fprintf(stdout, "           --verbose   Turns verbose on\n");

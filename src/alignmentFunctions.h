@@ -2,7 +2,7 @@
 #define QF_KARLIN 0.333
 
 typedef struct container{
-    llpos * table[4][4][4][4][4][4][4][4][4][4][4][4];
+    llpos * table[4][4][4][4][4][4][4][4][4][4][4]; // One reduced; A,C,G,T tables in use
 } Container;
 
 
@@ -13,7 +13,10 @@ typedef struct {
     SeqInfo * query;    //Query sequence and lengths
     uint64_t from;      //Starting READ to compute alignments from
     uint64_t to;        //End READ to compute alignments from
-    Container * container; //Container to hold the multidimensional array
+    Container * container_A; //Container to hold the multidimensional array
+    Container * container_C; //Container to hold the multidimensional array
+    Container * container_G; //Container to hold the multidimensional array
+    Container * container_T; //Container to hold the multidimensional array
     uint64_t accepted_query_reads; //Number of reads that have a fragment with evalue less than specified
     long double min_e_value;    //Minimum evalue to accept read
     long double min_coverage;    //Minimum coverage percentage to accept read
@@ -36,6 +39,14 @@ typedef struct {
     unsigned char * markers; // To tell which sequences were already used
 } HashTableArgs;
 
+typedef struct{
+    char * temp_seq_buffer;
+    SeqInfo * data_database;
+    uint64_t t_len;
+    uint64_t word_size;
+    uint64_t read_from;
+    uint64_t read_to;
+} LoadingDBArgs;
 
 /*
     Nucleotides matching function

@@ -12,6 +12,9 @@ void terror(char *s);
  */
 char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f);
 
+
+void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_len);
+
 /*
     Generates a queue of tasks for threads
 */

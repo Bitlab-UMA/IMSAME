@@ -14,16 +14,19 @@
 
 #define MAXLID 200
 #define ALIGN_LEN 60 //For NW alignment
-#define MAX_READ_SIZE 335000 //Maximum length of read to have a portion of the table allocated
+#define MAX_READ_SIZE 1000 //Maximum length of read to have a portion of the table allocated
 #define MAX_WINDOW_SIZE 500 //Maximum window length to explore NW table
 //#define POOL_SIZE 2500000000 // by 16 bytes it is 40 GB
 #define POOL_SIZE 12500000 // 1 GB if 16 bytes
 #define MAX_MEM_POOLS 256 
+#define FIXED_LOADING_THREADS 4
 
 #define FALSE 0
 #define TRUE 1
 
 extern uint64_t custom_kmer;
+
+typedef char _vector_char __attribute__ ((vector_size (32*sizeof(char))));
 
 //Struct for linked list of positions
 typedef struct linked_list_pos{

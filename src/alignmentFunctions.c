@@ -12,6 +12,7 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
+uint64_t custom_kmer = 12; // Defined as external in structs.h
 
 int64_t compare_letters(unsigned char a, unsigned char b){
     if(a != (unsigned char) 'N' && a != (unsigned char) '>') return (a == b) ? POINT : -POINT;
@@ -41,6 +42,164 @@ void init_mem_pool_llpos(Mempool_l * mp){
 }
 
 
+void * load_input(void * a){
+
+    LoadingDBArgs * ldbargs = (LoadingDBArgs *) a;
+    // Requires
+    /*
+    char * temp_seq_buffer;
+    SeqInfo * data_database; 1 per thread
+    uint64_t t_len;
+    uint64_t word_size;
+    uint64_t read_from;
+    uint64_t read_to;
+    uint64_t thread_id;
+
+
+    */
+    uint64_t c_pos = ldbargs->read_from;
+    char c = ldbargs->temp_seq_buffer[c_pos++];
+    unsigned char curr_kmer[custom_kmer];
+    curr_kmer[0] = '\0';
+    uint64_t word_size = 0, pos_in_database = 0;
+
+    while(c_pos < ldbargs->read_to){
+        if(c == '>'){
+            while(c != '\n') c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos;  //Skip ID
+
+            while(c != '>' && c_pos < ldbargs->read_to){ //Until next id
+                c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos;
+                c = toupper(c);
+                if(c == 'A' || c == 'C' || c == 'G' || c == 'T'){
+                    curr_kmer[word_size] = (unsigned char) c;
+                    if(word_size < custom_kmer) ++word_size;
+
+                    data_database.sequences[pos_in_database] = (unsigned char) c; ++pos_in_database;
+                }else{ //It can be anything (including N, Y, X ...)
+
+                    if(c != '\n' && c != '\r' && c != '>'){
+                        word_size = 0;
+                        data_database.sequences[pos_in_database] = (unsigned char) 'N'; ++pos_in_database; //Convert to N
+                    } 
+                }
+        }
+
+    }
+    
+    c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);
+    while((!feof(database) || (feof(database) && idx < r))){
+
+        if(c == '>'){
+            data_database.start_pos[data_database.n_seqs++] = pos_in_database;
+            
+            if(pos_in_database == READBUF*n_realloc_database){ 
+                n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
+            }
+
+            if(data_database.n_seqs == INITSEQS*n_seqs_database_realloc){
+                n_seqs_database_realloc++; data_database.start_pos =  (uint64_t *) realloc(data_database.start_pos, INITSEQS*n_seqs_database_realloc*sizeof(uint64_t));
+            }
+
+
+            while(c != '\n') c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);  //Skip ID
+                
+
+            while(c != '>' && (!feof(database) || (feof(database) && idx < r))){ //Until next id
+                c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);
+                c = toupper(c);
+                if(c == 'A' || c == 'C' || c == 'G' || c == 'T'){
+                    curr_kmer[word_size] = (unsigned char) c;
+                    if(word_size < custom_kmer) word_size++;
+                    data_database.sequences[pos_in_database++] = (unsigned char) c;
+            
+                    if(pos_in_database == READBUF*n_realloc_database){ 
+                        n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                        if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
+                    }
+
+
+                }else{ //It can be anything (including N, Y, X ...)
+
+                    if(c != '\n' && c != '\r' && c != '>'){
+                        word_size = 0;
+                        data_database.sequences[pos_in_database++] = (unsigned char) 'N'; //Convert to N
+                        if(pos_in_database == READBUF*n_realloc_database){ 
+                            n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                        if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
+                        }
+                    } 
+                }
+                if(word_size == custom_kmer){
+                    //write to hash table
+                    
+		
+                    pointer = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
+                    [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
+                    [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
+                    [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+
+                    
+
+                    if(pointer == NULL){
+
+                        pointer = getNewLocationllpos(mp, &n_pools_used);
+                        
+
+                        pointer->pos = pos_in_database;
+
+                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
+
+                        pointer->s_id = data_database.n_seqs-1;
+
+                        pointer->next = NULL;
+
+                    
+
+                    }else{
+
+                        
+                        aux = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
+                        [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
+                        [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
+                        [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+
+                        pointer = getNewLocationllpos(mp, &n_pools_used);
+
+                        pointer->pos = pos_in_database;
+                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
+                        pointer->s_id = data_database.n_seqs-1;
+                        pointer->next = aux;
+
+                    }
+
+                ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
+                [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
+                [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
+                [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
+    
+
+                // CURRENTLY USING OVERLAPPING
+                
+                memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+                memcpy(curr_kmer, aux_kmer, custom_kmer-1);
+                word_size--;
+                    
+                // For NON OVERLAPPING ENABLE THIS
+                //word_size = 0;
+                }
+            }
+            word_size = 0;
+            
+        }else{
+            c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);    
+        }
+        
+    }
+
+    
+    return NULL;
+}
 
 
 void * computeAlignmentsByThread(void * a){
