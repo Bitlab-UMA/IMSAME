@@ -24,15 +24,17 @@ char buffered_fgetc(char *buffer, uint64_t *pos, uint64_t *read, FILE *f) {
     return buffer[*pos-1];
 }
 
-void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_len){
+void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_len, LoadingDBArgs * ldbargs){
     char check[16] = ">>>>>>>>>>>>>>>>";
+    uint64_t a_fourth = *t_len / 4;
 
     uint64_t i=0;
     
     __m128i * ptr1;
     __m128i * ptr2;
     __m128i res = _mm_setzero_si128();
-    for(i=0; i<*t_len - 16; i+=16){
+    ldbargs[0]->read_from = 0;
+    for(i=0; i<*a_fourth - 16; i+=16){
         ptr1 = (__m128i *) &seq_buffer[i];
         ptr2 = (__m128i *) check;
         res = _mm_cmpeq_epi8(*ptr1, *ptr2);
@@ -53,14 +55,96 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
         *n_seqs += (uint64_t) (((unsigned char *) &res)[13]) >> 7;
         *n_seqs += (uint64_t) (((unsigned char *) &res)[14]) >> 7;
         *n_seqs += (uint64_t) (((unsigned char *) &res)[15]) >> 7;
-
-
     }
-    // Add last 16
+    while(seq_buffer[i] != '>') ++i;
+    ldbargs[0]->read_to = i;
+    ldbargs[0]->data_database->n_seqs = *n_seqs;
+
+    ldbargs[1]->read_from = i;
+    for(i=ldbargs[1]->read_from; i<2*(*a_fourth) - 16; i+=16){
+        ptr1 = (__m128i *) &seq_buffer[i];
+        ptr2 = (__m128i *) check;
+        res = _mm_cmpeq_epi8(*ptr1, *ptr2);
+        // TODO parallelize this
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[0]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[1]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[2]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[3]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[4]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[5]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[6]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[7]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[8]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[9]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[10]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[11]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[12]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[13]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[14]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[15]) >> 7;
+    }
+    while(seq_buffer[i] != '>') ++i;
+    ldbargs[1]->read_to = i;
+    ldbargs[1]->data_database->n_seqs = *n_seqs - ldbargs[0]->data_database->n_seqs;
+
+    ldbargs[2]->read_from = i;
+    for(i=ldbargs[2]->read_from; i<3*(*a_fourth) - 16; i+=16){
+        ptr1 = (__m128i *) &seq_buffer[i];
+        ptr2 = (__m128i *) check;
+        res = _mm_cmpeq_epi8(*ptr1, *ptr2);
+        // TODO parallelize this
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[0]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[1]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[2]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[3]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[4]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[5]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[6]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[7]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[8]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[9]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[10]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[11]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[12]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[13]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[14]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[15]) >> 7;
+    }
+    while(seq_buffer[i] != '>') ++i;
+    ldbargs[2]->read_to = i;
+    ldbargs[2]->data_database->n_seqs = *n_seqs - ldbargs[1]->data_database->n_seqs;
+
+
+
+    ldbargs[3]->read_from = i;
+    for(i=ldbargs[3]->read_from; i<(*t_len) - 16; i+=16){
+        ptr1 = (__m128i *) &seq_buffer[i];
+        ptr2 = (__m128i *) check;
+        res = _mm_cmpeq_epi8(*ptr1, *ptr2);
+        // TODO parallelize this
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[0]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[1]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[2]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[3]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[4]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[5]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[6]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[7]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[8]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[9]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[10]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[11]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[12]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[13]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[14]) >> 7;
+        *n_seqs += (uint64_t) (((unsigned char *) &res)[15]) >> 7;
+    }
     while(i < *t_len){
         if(seq_buffer[i] == '>') ++(*n_seqs);
-        i++;
+        ++i;
     }
+    ldbargs[3]->read_to = *t_len;
+    ldbargs[3]->data_database->n_seqs = *n_seqs - ldbargs[2]->data_database->n_seqs;
 
 }
 

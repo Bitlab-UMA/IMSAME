@@ -46,6 +46,9 @@ typedef struct{
     uint64_t word_size;
     uint64_t read_from;
     uint64_t read_to;
+    char thread_id;
+    Mempool_l * mp;
+    uint64_t n_pools_used;
 } LoadingDBArgs;
 
 /*

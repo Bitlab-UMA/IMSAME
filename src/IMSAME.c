@@ -143,44 +143,14 @@ int main(int argc, char ** av){
         terror("Could not allocate memory for read buffer");
     }
     //Vector to store database seq
-    unsigned char * seq_vector_database = (unsigned char *) malloc(READBUF*sizeof(unsigned char));
+    unsigned char ** seq_vector_database = (unsigned char **) malloc(4*sizeof(unsigned char *));
     if(seq_vector_database == NULL) terror("Could not allocate memory for database vector");
-    uint64_t n_realloc_database = 1;
-    uint64_t * database_positions = (uint64_t *) malloc(INITSEQS*sizeof(uint64_t));
+    uint64_t ** database_positions = (uint64_t **) malloc(4*sizeof(uint64_t));
     if(database_positions == NULL) terror("Could not allocate database sequences positions");
 
-    unsigned char curr_kmer[custom_kmer];
-    curr_kmer[0] = '\0';
-    uint64_t word_size = 0, pos_in_database = 0, n_seqs_database_realloc = 1;
-
-    //To hold all information related to database
-    SeqInfo data_database;
-    SeqInfo data_query;
-    data_database.sequences = seq_vector_database;
-    data_database.start_pos = database_positions;
-    data_database.total_len = 0;
-    data_database.n_seqs = 0;
-    
-    //To force reading from the buffer
-    idx = READBUF + 1;
-
-    //Store positions of kmers
-    uint64_t n_pools_used = 0;
     //Mempool_l * mp = (Mempool_l *) malloc(MAX_MEM_POOLS*sizeof(Mempool_l));
     //if(mp == NULL) terror("Could not allocate vectors for memory pools");
-    Mempool_l mp[MAX_MEM_POOLS];
-    init_mem_pool_llpos(&mp[n_pools_used]);
-    llpos * aux, * pointer;
-
-    unsigned char aux_kmer[custom_kmer+1];
-    
-    //Vector to store query seq
-    unsigned char * seq_vector_query = (unsigned char *) malloc(READBUF*sizeof(unsigned char));
-    if(seq_vector_query == NULL) terror("Could not allocate memory for query vector");
-    uint64_t n_realloc_query = 1, pos_in_query = 0, n_seqs_query_realloc = 1;
-    uint64_t * query_positions = (uint64_t *) malloc(INITSEQS*sizeof(uint64_t));
-    if(query_positions == NULL) terror("Could not allocate query sequences positions");
-
+    Mempool_l mp[FIXED_LOADING_THREADS][MAX_MEM_POOLS];
 
     Container * ct_A = (Container *) calloc(1, sizeof(Container));
     if(ct == NULL) terror("Could not allocate container A");
@@ -190,6 +160,27 @@ int main(int argc, char ** av){
     if(ct == NULL) terror("Could not allocate container G");
     Container * ct_T = (Container *) calloc(1, sizeof(Container));
     if(ct == NULL) terror("Could not allocate container T");
+
+    SeqInfo data_database[FIXED_LOADING_THREADS];
+    
+    
+    unsigned char curr_kmer[custom_kmer];
+    curr_kmer[0] = '\0';
+    uint64_t word_size = 0;
+
+    
+    SeqInfo data_query;
+    
+    //To force reading from the buffer
+    idx = READBUF + 1;
+    
+    //Vector to store query seq
+    unsigned char * seq_vector_query = (unsigned char *) malloc(READBUF*sizeof(unsigned char));
+    if(seq_vector_query == NULL) terror("Could not allocate memory for query vector");
+    uint64_t n_realloc_query = 1, pos_in_query = 0, n_seqs_query_realloc = 1;
+    uint64_t * query_positions = (uint64_t *) malloc(INITSEQS*sizeof(uint64_t));
+    if(query_positions == NULL) terror("Could not allocate query sequences positions");
+    
     
     
     // Read number of sequences and load into RAM
@@ -202,12 +193,19 @@ int main(int argc, char ** av){
 
     if(db_temp_size != fread(load_buffer, sizeof(char), db_temp_size, database)) terror("Could not read full sequence");
 
-    get_num_seqs_and_length(load_buffer, &data_database.n_seqs, &db_temp_size);
+    LoadingDBArgs args_DB_load[FIXED_LOADING_THREADS];
+
+
+    args_DB_load[0].data_database = &data_database[0];
+    args_DB_load[1].data_database = &data_database[1];
+    args_DB_load[2].data_database = &data_database[2];
+    args_DB_load[3].data_database = &data_database[3];
+    get_num_seqs_and_length(load_buffer, &data_database.n_seqs, &db_temp_size, args_DB_load);
 
     end = clock();
     fprintf(stdout, "[INFO] Loading into RAM and counting took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
 
-    LoadingDBArgs args_DB_load;
+    
     /*
     char * temp_seq_buffer;
     SeqInfo * data_database;
@@ -215,127 +213,46 @@ int main(int argc, char ** av){
     uint64_t word_size;
     uint64_t read_from;
     uint64_t read_to;
+    char thread_id;
+    Mempool_l * mp;
+    uint64_t n_pools_used;
     */
-    args_DB_load.temp_seq_buffer = load_buffer;
-    args_DB_load.data_database = &data_database;
-    args_DB_load.t_len = db_temp_size;
-    args_DB_load.word_size = custom_kmer;
 
+    // Launch threads to process database
+    args_DB_load[0] = 'A'; args_DB_load[1] = 'C'; args_DB_load[2] = 'G'; args_DB_load[3] = 'T';
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+
+        seq_vector_database[i] = (unsigned char *) malloc((args_DB_load[i].read_to - args_DB_load[i].read_from)*sizeof(unsigned char));
+        database_positions[i] = (uint64_t *) malloc(data_database[i].n_seqs*sizeof(uint64_t));
+        if(seq_vector_database[i] == NULL || database_positions[i] == NULL) terror("Could not allocate memory for individual database vectors");
+        data_database[i].sequences = seq_vector_database[i];
+        //To hold all information related to database
+        init_mem_pool_llpos(&mp[i][0]);
+
+        data_database[i].start_pos = database_positions[i];
+        data_database[i].total_len = (args_DB_load[i].read_to - args_DB_load[i].read_from);
+
+        args_DB_load[i].temp_seq_buffer = load_buffer;
+        args_DB_load[i].t_len = db_temp_size;
+        args_DB_load[i].word_size = custom_kmer;
+        args_DB_load[i].mp = mp[i];
+        args_DB_load[i].n_pools_used = 0;
+        if( 0 != (error = pthread_create(&loading_threads[i], NULL, load_input, (void *) (&args_DB_load[i])) )){
+            fprintf(stdout, "[@loading] Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
+        }
+    }
+    
+    //Wait for threads to finish
+    for(i=0;i<FIXED_LOADING_THREADS;i++){
+        pthread_join(loading_threads[i], NULL);
+    }
+    
 
 
     begin = clock();
     //fprintf(stdout, "[INFO] WARNING!!!!!!!!! USING NON OVERLAPPING MERS, WHICH IS NOT INCLUDED AS OPTION!!!! DISABLE\n");
 
-    c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);
-    while((!feof(database) || (feof(database) && idx < r))){
-
-        if(c == '>'){
-            data_database.start_pos[data_database.n_seqs++] = pos_in_database;
-            
-            if(pos_in_database == READBUF*n_realloc_database){ 
-                n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
-                if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
-            }
-
-            if(data_database.n_seqs == INITSEQS*n_seqs_database_realloc){
-                n_seqs_database_realloc++; data_database.start_pos =  (uint64_t *) realloc(data_database.start_pos, INITSEQS*n_seqs_database_realloc*sizeof(uint64_t));
-            }
-
-
-            while(c != '\n') c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);  //Skip ID
-                
-
-            while(c != '>' && (!feof(database) || (feof(database) && idx < r))){ //Until next id
-                c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);
-                c = toupper(c);
-                if(c == 'A' || c == 'C' || c == 'G' || c == 'T'){
-                    curr_kmer[word_size] = (unsigned char) c;
-                    if(word_size < custom_kmer) word_size++;
-                    data_database.sequences[pos_in_database++] = (unsigned char) c;
-            
-                    if(pos_in_database == READBUF*n_realloc_database){ 
-                        n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
-                        if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
-                    }
-
-
-                }else{ //It can be anything (including N, Y, X ...)
-
-                    if(c != '\n' && c != '\r' && c != '>'){
-                        word_size = 0;
-                        data_database.sequences[pos_in_database++] = (unsigned char) 'N'; //Convert to N
-                        if(pos_in_database == READBUF*n_realloc_database){ 
-                            n_realloc_database++; data_database.sequences = (unsigned char *) realloc(data_database.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
-                        if(data_database.sequences == NULL) terror("Could not reallocate temporary database");
-                        }
-                    } 
-                }
-                if(word_size == custom_kmer){
-                    //write to hash table
-                    
-		
-                    pointer = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                    [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                    [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                    [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
-
-                    
-
-                    if(pointer == NULL){
-
-                        pointer = getNewLocationllpos(mp, &n_pools_used);
-                        
-
-                        pointer->pos = pos_in_database;
-
-                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-
-                        pointer->s_id = data_database.n_seqs-1;
-
-                        pointer->next = NULL;
-
-                    
-
-                    }else{
-
-                        
-                        aux = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                        [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                        [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                        [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
-
-                        pointer = getNewLocationllpos(mp, &n_pools_used);
-
-                        pointer->pos = pos_in_database;
-                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = data_database.n_seqs-1;
-                        pointer->next = aux;
-
-                    }
-
-                ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
     
-
-                // CURRENTLY USING OVERLAPPING
-                
-                memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
-                memcpy(curr_kmer, aux_kmer, custom_kmer-1);
-                word_size--;
-                    
-                // For NON OVERLAPPING ENABLE THIS
-                //word_size = 0;
-                }
-            }
-            word_size = 0;
-            
-        }else{
-            c = buffered_fgetc(temp_seq_buffer, &idx, &r, database);    
-        }
-        
-    }
 
     end = clock();
 
@@ -446,33 +363,6 @@ int main(int argc, char ** av){
     end = clock();
 
     
-    /*
-    for(w0=0;w0<4;w0++){
-        for(w1=0;w1<4;w1++){
-            for(w2=0;w2<4;w2++){
-                for(w3=0;w3<4;w3++){
-                    for(w4=0;w4<4;w4++){
-                        for(w5=0;w5<4;w5++){
-                            for(w6=0;w6<4;w6++){
-                                for(w7=0;w7<4;w7++){
-                                    for(w8=0;w8<4;w8++){
-                                        for(w9=0;w9<4;w9++){
-                                            for(w10=0;w10<4;w10++){
-                                                for(w11=0;w11<4;w11++){
-                                                    fprintf(stdout, "%p\n", ct->table[w0][w1][w2][w3][w4][w5][w6][w7][w8][w9][w10][w11]);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
     data_query.total_len = pos_in_query;
 
     fprintf(stdout, "[INFO] Query loaded and of length %"PRIu64". Took %e seconds\n", data_query.total_len, (double)(end-begin)/CLOCKS_PER_SEC);
