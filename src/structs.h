@@ -65,7 +65,22 @@ typedef struct point{
     uint64_t y;
 } Point;
 
+typedef struct container{
+    llpos * table[4][4][4][4][4][4][4][4][4][4][4]; // One reduced; A,C,G,T tables in use
+} Container;
 
+typedef struct{
+    char * temp_seq_buffer;
+    SeqInfo * data_database;
+    uint64_t t_len;
+    uint64_t word_size;
+    uint64_t read_from;
+    uint64_t read_to;
+    char thread_id;
+    Container * ct;
+    Mempool_l * mp;
+    uint64_t n_pools_used;
+} LoadingDBArgs;
 
 struct cell{
     int64_t score;

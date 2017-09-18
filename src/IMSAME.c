@@ -61,12 +61,6 @@ int main(int argc, char ** av){
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
 
-    unsigned char char_converter[91];
-    char_converter[(unsigned char)'A'] = 0;
-    char_converter[(unsigned char)'C'] = 1;
-    char_converter[(unsigned char)'G'] = 2;
-    char_converter[(unsigned char)'T'] = 3;
-
     begin = clock();
 
     fprintf(stdout, "[INFO] Init. quick table\n");
@@ -143,9 +137,9 @@ int main(int argc, char ** av){
         terror("Could not allocate memory for read buffer");
     }
     //Vector to store database seq
-    unsigned char ** seq_vector_database = (unsigned char **) malloc(4*sizeof(unsigned char *));
+    unsigned char ** seq_vector_database = (unsigned char **) malloc(FIXED_LOADING_THREADS*sizeof(unsigned char *));
     if(seq_vector_database == NULL) terror("Could not allocate memory for database vector");
-    uint64_t ** database_positions = (uint64_t **) malloc(4*sizeof(uint64_t));
+    uint64_t ** database_positions = (uint64_t **) malloc(FIXED_LOADING_THREADS*sizeof(uint64_t));
     if(database_positions == NULL) terror("Could not allocate database sequences positions");
 
     //Mempool_l * mp = (Mempool_l *) malloc(MAX_MEM_POOLS*sizeof(Mempool_l));
@@ -153,18 +147,20 @@ int main(int argc, char ** av){
     Mempool_l mp[FIXED_LOADING_THREADS][MAX_MEM_POOLS];
 
     Container * ct_A = (Container *) calloc(1, sizeof(Container));
-    if(ct == NULL) terror("Could not allocate container A");
+    if(ct_A == NULL) terror("Could not allocate container A");
     Container * ct_C = (Container *) calloc(1, sizeof(Container));
-    if(ct == NULL) terror("Could not allocate container C");
+    if(ct_C == NULL) terror("Could not allocate container C");
     Container * ct_G = (Container *) calloc(1, sizeof(Container));
-    if(ct == NULL) terror("Could not allocate container G");
+    if(ct_G == NULL) terror("Could not allocate container G");
     Container * ct_T = (Container *) calloc(1, sizeof(Container));
-    if(ct == NULL) terror("Could not allocate container T");
+    if(ct_T == NULL) terror("Could not allocate container T");
 
     SeqInfo data_database[FIXED_LOADING_THREADS];
+    uint64_t full_db_n_seqs;
     
     
     unsigned char curr_kmer[custom_kmer];
+    unsigned char aux_kmer[custom_kmer+1];
     curr_kmer[0] = '\0';
     uint64_t word_size = 0;
 
@@ -200,7 +196,13 @@ int main(int argc, char ** av){
     args_DB_load[1].data_database = &data_database[1];
     args_DB_load[2].data_database = &data_database[2];
     args_DB_load[3].data_database = &data_database[3];
-    get_num_seqs_and_length(load_buffer, &data_database.n_seqs, &db_temp_size, args_DB_load);
+
+    args_DB_load[0].ct = ct_A;
+    args_DB_load[1].ct = ct_C;
+    args_DB_load[2].ct = ct_G;
+    args_DB_load[3].ct = ct_T;
+
+    get_num_seqs_and_length(load_buffer, &full_db_n_seqs, &db_temp_size, args_DB_load);
 
     end = clock();
     fprintf(stdout, "[INFO] Loading into RAM and counting took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
@@ -219,7 +221,12 @@ int main(int argc, char ** av){
     */
 
     // Launch threads to process database
-    args_DB_load[0] = 'A'; args_DB_load[1] = 'C'; args_DB_load[2] = 'G'; args_DB_load[3] = 'T';
+
+    args_DB_load[0].thread_id = 'A';
+    args_DB_load[1].thread_id = 'C';
+    args_DB_load[2].thread_id = 'G';
+    args_DB_load[3].thread_id = 'T';
+
     for(i=0; i<FIXED_LOADING_THREADS; i++){
 
         seq_vector_database[i] = (unsigned char *) malloc((args_DB_load[i].read_to - args_DB_load[i].read_from)*sizeof(unsigned char));
@@ -256,9 +263,10 @@ int main(int argc, char ** av){
 
     end = clock();
 
-    data_database.total_len = pos_in_database;
+    //data_database.total_len = pos_in_database;
+    uint64_t full_db_len = data_database[0].total_len + data_database[1].total_len + data_database[2].total_len + data_database[3].total_len;
 
-    fprintf(stdout, "[INFO] Database loaded and of length %"PRIu64". Hash table building took %e seconds\n", data_database.total_len, (double)(end-begin)/CLOCKS_PER_SEC);
+    fprintf(stdout, "[INFO] Database loaded and of length %"PRIu64" (%"PRIu64" sequences). Hash table building took %e seconds\n", full_db_len, full_db_n_seqs, (double)(end-begin)/CLOCKS_PER_SEC);
     //close database
     fclose(database);
 
@@ -267,7 +275,7 @@ int main(int argc, char ** av){
         marker_taggs = (unsigned char **) malloc(n_threads * sizeof(unsigned char *));
         if(marker_taggs == NULL) terror("Could not allocate marker taggs");
         for(i=0;i<n_threads;i++){
-            marker_taggs[i] = (unsigned char *) malloc(data_database.n_seqs);
+            marker_taggs[i] = (unsigned char *) malloc(full_db_n_seqs);
             if(marker_taggs[i] == NULL) terror("Could not allocate second loop of marker taggs");
         }
     }
@@ -276,7 +284,7 @@ int main(int argc, char ** av){
         if(hits_table == NULL) terror("Could not allocate hits table");
         uint64_t z;
         for(z=0;z<n_threads;z++){
-            hits_table[z] = (uint64_t *) calloc(data_database.n_seqs, sizeof(uint64_t));
+            hits_table[z] = (uint64_t *) calloc(full_db_n_seqs, sizeof(uint64_t));
             if(hits_table[z] == NULL) terror("Could not allocate sub table of hits");
         }
     }
@@ -294,7 +302,6 @@ int main(int argc, char ** av){
     data_query.start_pos = query_positions;
     data_query.total_len = 0;
     data_query.n_seqs = 0;
-    n_realloc_database = 1;
     
     
     //Print info
@@ -337,16 +344,16 @@ int main(int argc, char ** av){
                         word_size--;
                     }
             
-                    if(pos_in_query == READBUF*n_realloc_database){ 
-                        n_realloc_database++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                    if(pos_in_query == READBUF*n_realloc_query){ 
+                        n_realloc_query++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_query*sizeof(unsigned char));
                         if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                     }
                 }else{
                     if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         data_query.sequences[pos_in_query++] = (unsigned char) 'N'; //Convert to N
-                        if(pos_in_query == READBUF*n_realloc_database){ 
-                            n_realloc_database++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_database*sizeof(unsigned char));
+                        if(pos_in_query == READBUF*n_realloc_query){ 
+                            n_realloc_query++; data_query.sequences = (unsigned char *) realloc(data_query.sequences, READBUF*n_realloc_query*sizeof(unsigned char));
                             if(data_query.sequences == NULL) terror("Could not reallocate temporary query");
                         }
                     }
@@ -395,16 +402,47 @@ int main(int argc, char ** av){
         fflush(stdout);
     }
     */
+
+    // Make the full db
+    SeqInfo final_db;
+    final_db.sequences = (unsigned char *) malloc(full_db_len * sizeof(unsigned char));
+    if(final_db.sequences == NULL) terror ("Could not allocate final database sequences");
+    memcpy(&final_db.sequences[0], &data_database[0].sequences[0], data_database[0].total_len);
+    memcpy(&final_db.sequences[data_database[0].total_len], &data_database[1].sequences[0], data_database[1].total_len);
+    memcpy(&final_db.sequences[data_database[0].total_len+data_database[1].total_len], &data_database[2].sequences[0], data_database[2].total_len);
+    memcpy(&final_db.sequences[data_database[0].total_len+data_database[1].total_len+data_database[2].total_len], &data_database[3].sequences[0], data_database[3].total_len);
+    final_db.start_pos = (uint64_t *) malloc(full_db_n_seqs * sizeof(uint64_t));
+    if(final_db.start_pos == NULL) terror("Could not allocate final db starting positions");
+    // Copy them with offset
+    i=0;
+    while(i<data_database[0].n_seqs){ final_db.start_pos[i] = data_database[0].start_pos[i]; ++i; }
+    j=0;
+    while(i<data_database[1].n_seqs){ final_db.start_pos[i] = data_database[1].start_pos[j]; ++i; ++j; }
+    j=0;
+    while(i<data_database[2].n_seqs){ final_db.start_pos[i] = data_database[2].start_pos[j]; ++i; ++j; }
+    j=0;
+    while(i<data_database[3].n_seqs){ final_db.start_pos[i] = data_database[3].start_pos[j]; ++i; ++j; }
+    
+    final_db.total_len = full_db_len;
+    final_db.n_seqs = full_db_n_seqs;
+    
+    for(i=0;i<FIXED_LOADING_THREADS;i++){
+        free(data_database[i].sequences);
+        free(data_database[i].start_pos);
+    }
     
 
 
     for(i=0;i<n_threads;i++){
         hta[i].id = i;
-        hta[i].database = &data_database;
+        hta[i].database = &final_db;
         hta[i].query = &data_query;
         //hta[i].from = i * reads_per_thread;
         //hta[i].to = (i + 1) * reads_per_thread;
-        hta[i].container = ct;
+        hta[i].container_a = ct_a;
+        hta[i].container_b = ct_b;
+        hta[i].container_c = ct_c;
+        hta[i].container_d = ct_d;
         hta[i].accepted_query_reads = 0;
         hta[i].min_e_value = minevalue;
         hta[i].min_coverage = mincoverage;
@@ -447,16 +485,16 @@ int main(int argc, char ** av){
     }
     // Accumulate hits just in case
     if(hits_only == TRUE){
-        for(i=0;i<data_database.n_seqs;i++){
+        for(i=0;i<full_db_n_seqs;i++){
             for(j=1;j<n_threads;j++){
                 hta[0].hits[i] += hta[j].hits[i];
             }
             if(out_database != NULL){
                 
-                if(i == data_database.n_seqs - 1){
-                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], data_database.total_len - data_database.start_pos[i]);
+                if(i == final_db.n_seqs - 1){
+                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], full_db_len - final_db.start_pos[i]);
                 }else{
-                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], data_database.start_pos[i+1] - data_database.start_pos[i]);
+                    fprintf(out_database, "%"PRIu64"\t%"PRIu64"\t%"PRIu64"\n", i, hta[0].hits[i], final_db.start_pos[i+1] - final_db.start_pos[i]);
                 }
             }
         }
@@ -465,8 +503,8 @@ int main(int argc, char ** av){
     
     end = clock();
     fprintf(stdout, "[INFO] Alignments computed in %e seconds.\n", (double)(end-begin)/CLOCKS_PER_SEC);
-    fprintf(stdout, "[INFO] %"PRIu64" reads (%"PRIu64") from the query were found in the database (%"PRIu64") at a minimum e-value of %Le and minimum coverage of %d%%.\n", sum_accepted_reads, data_query.n_seqs, data_database.n_seqs, (long double)minevalue, (int) (100*mincoverage));
-    fprintf(stdout, "[INFO] The Jaccard-index is: %Le\n", (long double)sum_accepted_reads/((data_database.n_seqs+data_query.n_seqs)-sum_accepted_reads));
+    fprintf(stdout, "[INFO] %"PRIu64" reads (%"PRIu64") from the query were found in the database (%"PRIu64") at a minimum e-value of %Le and minimum coverage of %d%%.\n", sum_accepted_reads, data_query.n_seqs, final_db.n_seqs, (long double)minevalue, (int) (100*mincoverage));
+    fprintf(stdout, "[INFO] The Jaccard-index is: %Le\n", (long double)sum_accepted_reads/((final_db.n_seqs+data_query.n_seqs)-sum_accepted_reads));
     fprintf(stdout, "[INFO] Deallocating heap memory.\n");
 
     fclose(query);
@@ -483,8 +521,8 @@ int main(int argc, char ** av){
         free(hits_table);
     }
 
-    free(data_database.sequences);
-    free(data_database.start_pos);
+    free(final_db.sequences);
+    free(final_db.start_pos);
     free(data_query.sequences);
     free(data_query.start_pos);
     free(ct_A->table);
@@ -530,9 +568,12 @@ int main(int argc, char ** av){
 
     pthread_mutex_destroy(&lock);
 
-    for(i=0;i<=n_pools_used;i++){
-        free(mp[i].base);
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+        for(j=0;j<=args_DB_load[i].n_pools_used;j++){
+            free(mp[j][i].base);
+        }
     }
+    
     //Deallocate queue (its allocated as an array)
     free(first_task);
 

@@ -12,8 +12,6 @@
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) <= (y)) ? (x) : (y))
 
-uint64_t custom_kmer = 12; // Defined as external in structs.h
-
 int64_t compare_letters(unsigned char a, unsigned char b){
     if(a != (unsigned char) 'N' && a != (unsigned char) '>') return (a == b) ? POINT : -POINT;
     return -POINT;
@@ -60,9 +58,11 @@ void * load_input(void * a){
     uint64_t c_pos = ldbargs->read_from;
     char c = ldbargs->temp_seq_buffer[c_pos++];
     unsigned char curr_kmer[custom_kmer];
+    unsigned char aux_kmer[custom_kmer+1];
     curr_kmer[0] = '\0';
     uint64_t word_size = 0, pos_in_database = 0;
     unsigned char char_converter[91];
+    uint64_t curr_seq = 0;
     char_converter[(unsigned char)'A'] = 0;
     char_converter[(unsigned char)'C'] = 1;
     char_converter[(unsigned char)'G'] = 2;
@@ -70,32 +70,39 @@ void * load_input(void * a){
     llpos * aux, * pointer;
 
     while(c_pos < ldbargs->read_to){
+        //if(ldbargs->thread_id == 'A') printf("%"PRIu64" from:%"PRIu64", to %"PRIu64"\n", c_pos, ldbargs->read_from, ldbargs->read_to);
+
         if(c == '>'){
-            while(c != '\n') c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos;  //Skip ID
+            
+            ldbargs->data_database->start_pos[curr_seq] = c_pos; ++curr_seq;
+
+            while(c != '\n'){ c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos; }  //Skip ID
 
             while(c != '>' && c_pos < ldbargs->read_to){ //Until next id
+
+                //if(ldbargs->thread_id == 'A') printf("!!!!!!%"PRIu64" from:%"PRIu64", to %"PRIu64"\n", c_pos, ldbargs->read_from, ldbargs->read_to);
                 c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos;
                 c = toupper(c);
                 if(c == 'A' || c == 'C' || c == 'G' || c == 'T'){
                     curr_kmer[word_size] = (unsigned char) c;
                     if(word_size < custom_kmer) ++word_size;
 
-                    ldbargs->data_database.sequences[pos_in_database] = (unsigned char) c; ++pos_in_database;
+                    ldbargs->data_database->sequences[pos_in_database] = (unsigned char) c; ++pos_in_database;
                 }else{ //It can be anything (including N, Y, X ...)
 
                     if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
-                        ldbargs->data_database.sequences[pos_in_database] = (unsigned char) 'N'; ++pos_in_database; //Convert to N
+                        ldbargs->data_database->sequences[pos_in_database] = (unsigned char) 'N'; ++pos_in_database; //Convert to N
                     } 
                 }
-                if(word_size == custom_kmer && ldbargs->thread_id == (char) curr_kmer[0]){
+                if(word_size == custom_kmer){
                     //write to hash table
                     
 		
-                    pointer = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                    [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                    [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                    [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                    pointer = ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
                     
 
@@ -104,7 +111,7 @@ void * load_input(void * a){
                         pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = ldbargs->data_database.n_seqs-1;
+                        pointer->s_id = ldbargs->data_database->n_seqs-1;
                         pointer->next = NULL;
 
                     
@@ -112,39 +119,44 @@ void * load_input(void * a){
                     }else{
 
                         
-                        aux = ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                        [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                        [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                        [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                        aux = ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
                         pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
 
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = ldbargs->data_database.n_seqs-1;
+                        pointer->s_id = ldbargs->data_database->n_seqs-1;
                         pointer->next = aux;
 
                     }
 
-                ct->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
+                    ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
     
 
-                // CURRENTLY USING OVERLAPPING
-                
-                memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
-                memcpy(curr_kmer, aux_kmer, custom_kmer-1);
-                word_size--;
+                    // CURRENTLY USING OVERLAPPING
                     
-                // For NON OVERLAPPING ENABLE THIS
-                //word_size = 0;
-            }
+                    memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
+                    memcpy(curr_kmer, aux_kmer, custom_kmer-1);
+                    word_size--;
+                        
+                    // For NON OVERLAPPING ENABLE THIS
+                    //word_size = 0;
+                }
 
+            }
+            word_size = 0;
+        }else{
+            c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos;
         }
+
     }
-    
+    ldbargs->data_database->total_len = pos_in_database;
     return NULL;
 }
 
@@ -178,6 +190,13 @@ typedef struct {
 
     Point p0, p1, p2, p3; //Points for NW anchored
     p0.x = 0; p0.y = 0;
+
+    Container ptr_table_redirect[4][1];
+    ptr_table_redirect[0] = hta->container_a;
+    ptr_table_redirect[1] = hta->container_b;
+    ptr_table_redirect[2] = hta->container_c;
+    ptr_table_redirect[3] = hta->container_d;
+    unsigned char current_table = 0;
 
     
 
@@ -266,13 +285,49 @@ typedef struct {
             }
 
             if (crrSeqL >= custom_kmer) { // Full well formed sequence
+            
+                // Choose table
+                /*
+                if(curr_kmer[0] == (unsigned char) 'A'){
+                    ptr_table_redirect = hta->container_A;
+                }else if(curr_kmer[0] == (unsigned char) 'C'){
+                    ptr_table_redirect = hta->container_C;
+                }else if(curr_kmer[0] == (unsigned char) 'G'){
+                    ptr_table_redirect = hta->container_G;
+                }else{
+                    ptr_table_redirect = hta->container_T;
+                }
+                */
 
                 //fprintf(stdout, "%s\n", curr_kmer);
                 //fflush(stdout);
-                aux = hta->container->table[char_converter[curr_kmer[0]]][char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]]
-                        [char_converter[curr_kmer[3]]][char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]]
-                        [char_converter[curr_kmer[6]]][char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]]
-                        [char_converter[curr_kmer[9]]][char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                current_table = 0;
+                aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+
+                if(aux == NULL){
+                    ++current_table;
+                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                }
+                if(aux == NULL){
+                    ++current_table;
+                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                }
+                if(aux == NULL){
+                    ++current_table;
+                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                }
 
                 //While there are hits
                 //fprintf(stdout, "%p\n", aux);
@@ -452,6 +507,13 @@ typedef struct {
                     //printf("Hit comes from %"PRIu64", %"PRIu64"\n", pos_of_hit, curr_pos);
                     only_hits:
                     aux = aux->next;
+                    while(aux == NULL && current_table-1 < FIXED_LOADING_THREADS){
+                        ++current_table;
+                        aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
+                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
+                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                    }
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
                 }

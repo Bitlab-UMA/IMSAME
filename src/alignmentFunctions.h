@@ -1,10 +1,6 @@
 #define QF_LAMBDA 0.275
 #define QF_KARLIN 0.333
 
-typedef struct container{
-    llpos * table[4][4][4][4][4][4][4][4][4][4][4]; // One reduced; A,C,G,T tables in use
-} Container;
-
 
 
 typedef struct {
@@ -13,10 +9,10 @@ typedef struct {
     SeqInfo * query;    //Query sequence and lengths
     uint64_t from;      //Starting READ to compute alignments from
     uint64_t to;        //End READ to compute alignments from
-    Container * container_A; //Container to hold the multidimensional array
-    Container * container_C; //Container to hold the multidimensional array
-    Container * container_G; //Container to hold the multidimensional array
-    Container * container_T; //Container to hold the multidimensional array
+    Container * container_a; //Container to hold the multidimensional array
+    Container * container_b; //Container to hold the multidimensional array
+    Container * container_c; //Container to hold the multidimensional array
+    Container * container_d; //Container to hold the multidimensional array
     uint64_t accepted_query_reads; //Number of reads that have a fragment with evalue less than specified
     long double min_e_value;    //Minimum evalue to accept read
     long double min_coverage;    //Minimum coverage percentage to accept read
@@ -39,17 +35,7 @@ typedef struct {
     unsigned char * markers; // To tell which sequences were already used
 } HashTableArgs;
 
-typedef struct{
-    char * temp_seq_buffer;
-    SeqInfo * data_database;
-    uint64_t t_len;
-    uint64_t word_size;
-    uint64_t read_from;
-    uint64_t read_to;
-    char thread_id;
-    Mempool_l * mp;
-    uint64_t n_pools_used;
-} LoadingDBArgs;
+
 
 /*
     Nucleotides matching function
@@ -68,7 +54,10 @@ void init_mem_pool_llpos(Mempool_l * mp);
  */
 llpos * getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used);
 
-
+/*
+    Load input database using 4 threads
+*/
+void * load_input(void * a);
 /*
     Compute alignments by thread given a hash table argument
 */
