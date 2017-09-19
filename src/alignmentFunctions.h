@@ -13,6 +13,8 @@ typedef struct {
     Container * container_b; //Container to hold the multidimensional array
     Container * container_c; //Container to hold the multidimensional array
     Container * container_d; //Container to hold the multidimensional array
+    uint64_t * contained_reads;
+    uint64_t * base_coordinates;
     uint64_t accepted_query_reads; //Number of reads that have a fragment with evalue less than specified
     long double min_e_value;    //Minimum evalue to accept read
     long double min_coverage;    //Minimum coverage percentage to accept read

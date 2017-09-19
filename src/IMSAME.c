@@ -148,12 +148,12 @@ int main(int argc, char ** av){
 
     Container * ct_A = (Container *) calloc(1, sizeof(Container));
     if(ct_A == NULL) terror("Could not allocate container A");
+    Container * ct_B = (Container *) calloc(1, sizeof(Container));
+    if(ct_B == NULL) terror("Could not allocate container B");
     Container * ct_C = (Container *) calloc(1, sizeof(Container));
     if(ct_C == NULL) terror("Could not allocate container C");
-    Container * ct_G = (Container *) calloc(1, sizeof(Container));
-    if(ct_G == NULL) terror("Could not allocate container G");
-    Container * ct_T = (Container *) calloc(1, sizeof(Container));
-    if(ct_T == NULL) terror("Could not allocate container T");
+    Container * ct_D = (Container *) calloc(1, sizeof(Container));
+    if(ct_D == NULL) terror("Could not allocate container D");
 
     SeqInfo data_database[FIXED_LOADING_THREADS];
     uint64_t full_db_n_seqs;
@@ -198,9 +198,9 @@ int main(int argc, char ** av){
     args_DB_load[3].data_database = &data_database[3];
 
     args_DB_load[0].ct = ct_A;
-    args_DB_load[1].ct = ct_C;
-    args_DB_load[2].ct = ct_G;
-    args_DB_load[3].ct = ct_T;
+    args_DB_load[1].ct = ct_B;
+    args_DB_load[2].ct = ct_C;
+    args_DB_load[3].ct = ct_D;
 
     get_num_seqs_and_length(load_buffer, &full_db_n_seqs, &db_temp_size, args_DB_load);
 
@@ -230,7 +230,7 @@ int main(int argc, char ** av){
     for(i=0; i<FIXED_LOADING_THREADS; i++){
 
         seq_vector_database[i] = (unsigned char *) malloc((args_DB_load[i].read_to - args_DB_load[i].read_from)*sizeof(unsigned char));
-        database_positions[i] = (uint64_t *) malloc(data_database[i].n_seqs*sizeof(uint64_t));
+        database_positions[i] = (uint64_t *) malloc((1+data_database[i].n_seqs)*sizeof(uint64_t));
         if(seq_vector_database[i] == NULL || database_positions[i] == NULL) terror("Could not allocate memory for individual database vectors");
         data_database[i].sequences = seq_vector_database[i];
         //To hold all information related to database
@@ -404,6 +404,12 @@ int main(int argc, char ** av){
     */
 
     // Make the full db
+    uint64_t contained_reads[FIXED_LOADING_THREADS];
+    uint64_t base_coordinates[FIXED_LOADING_THREADS];
+    for(i=0;i<FIXED_LOADING_THREADS;i++){
+        contained_reads[i] = args_DB_load[i].contained_reads;
+        base_coordinates[i] = args_DB_load[i].base_coordinates;
+    }
     SeqInfo final_db;
     final_db.sequences = (unsigned char *) malloc(full_db_len * sizeof(unsigned char));
     if(final_db.sequences == NULL) terror ("Could not allocate final database sequences");
@@ -417,11 +423,14 @@ int main(int argc, char ** av){
     i=0;
     while(i<data_database[0].n_seqs){ final_db.start_pos[i] = data_database[0].start_pos[i]; ++i; }
     j=0;
-    while(i<data_database[1].n_seqs){ final_db.start_pos[i] = data_database[1].start_pos[j]; ++i; ++j; }
+    //printf("switch\n");
+    while(j<data_database[1].n_seqs){ final_db.start_pos[i] = data_database[1].start_pos[j]; ++i; ++j; }
     j=0;
-    while(i<data_database[2].n_seqs){ final_db.start_pos[i] = data_database[2].start_pos[j]; ++i; ++j; }
+    //printf("switch\n");
+    while(j<data_database[2].n_seqs){ final_db.start_pos[i] = data_database[2].start_pos[j]; ++i; ++j; }
     j=0;
-    while(i<data_database[3].n_seqs){ final_db.start_pos[i] = data_database[3].start_pos[j]; ++i; ++j; }
+    //printf("switch\n");
+    while(j<data_database[3].n_seqs){ final_db.start_pos[i] = data_database[3].start_pos[j]; ++i; ++j; }
     
     final_db.total_len = full_db_len;
     final_db.n_seqs = full_db_n_seqs;
@@ -432,17 +441,35 @@ int main(int argc, char ** av){
     }
     
 
+    // Debug
+    
+    for(i=0; i<full_db_n_seqs-1; i++){
+        printf("%"PRIu64" - %"PRIu64"\n", final_db.start_pos[i], final_db.start_pos[i+1]);
+        //getchar();
+    }
+    
+    
+
 
     for(i=0;i<n_threads;i++){
         hta[i].id = i;
         hta[i].database = &final_db;
         hta[i].query = &data_query;
+        hta[i].contained_reads[0] = data_database[0].sequences[0];
+        hta[i].contained_reads[1] = data_database[0].sequences[0];
+        hta[i].contained_reads[2] = data_database[0].sequences[0];
+        hta[i].contained_reads[3] = data_database[0].sequences[0];
+
+        
+    uint64_t base_coordinates[FIXED_LOADING_THREADS];
         //hta[i].from = i * reads_per_thread;
         //hta[i].to = (i + 1) * reads_per_thread;
-        hta[i].container_a = ct_a;
-        hta[i].container_b = ct_b;
-        hta[i].container_c = ct_c;
-        hta[i].container_d = ct_d;
+        hta[i].container_a = ct_A;
+        hta[i].container_b = ct_B;
+        hta[i].container_c = ct_C;
+        hta[i].container_d = ct_D;
+        hta[i].contained_reads = contained_reads;
+        hta[i].base_coordinates = base_coordinates;
         hta[i].accepted_query_reads = 0;
         hta[i].min_e_value = minevalue;
         hta[i].min_coverage = mincoverage;
@@ -526,9 +553,9 @@ int main(int argc, char ** av){
     free(data_query.sequences);
     free(data_query.start_pos);
     free(ct_A->table);
+    free(ct_B->table);
     free(ct_C->table);
-    free(ct_G->table);
-    free(ct_T->table);
+    free(ct_D->table);
     //free(ct);
     free(threads);
     free(hta);

@@ -14,8 +14,8 @@
 
 #define MAXLID 200
 #define ALIGN_LEN 60 //For NW alignment
-#define MAX_READ_SIZE 1000 //Maximum length of read to have a portion of the table allocated
-#define MAX_WINDOW_SIZE 500 //Maximum window length to explore NW table
+#define MAX_READ_SIZE 10000 //Maximum length of read to have a portion of the table allocated
+#define MAX_WINDOW_SIZE 1000 //Maximum window length to explore NW table
 //#define POOL_SIZE 2500000000 // by 16 bytes it is 40 GB
 #define POOL_SIZE 12500000 // 1 GB if 16 bytes
 #define MAX_MEM_POOLS 256 
@@ -76,6 +76,8 @@ typedef struct{
     uint64_t word_size;
     uint64_t read_from;
     uint64_t read_to;
+    uint64_t contained_reads;
+    uint64_t base_coordinates;
     char thread_id;
     Container * ct;
     Mempool_l * mp;

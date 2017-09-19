@@ -62,9 +62,13 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     while(seq_buffer[i] != '>'){ ++i; }
     ldbargs[0].read_to = i;
     ldbargs[0].data_database->n_seqs = *n_seqs;
-    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-
     ldbargs[1].read_from = i;
+    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
+    if(i > ldbargs[1].read_to) ++(*n_seqs); // For the advance to align bytes
+
+    printf("seqs at 0: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[0].data_database->n_seqs, ldbargs[0].read_from, ldbargs[0].read_to);
+
+    
     for(i=i; i<2*(a_fourth) - 16; i+=16){
         ptr1 = (__m128i *) &seq_buffer[i];
         res = _mm_cmpeq_epi8(*ptr1, *ptr2);
@@ -89,9 +93,13 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     while(seq_buffer[i] != '>') ++i;
     ldbargs[1].read_to = i;
     ldbargs[1].data_database->n_seqs = *n_seqs - ldbargs[0].data_database->n_seqs;
-    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-
     ldbargs[2].read_from = i;
+    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
+    if(i > ldbargs[2].read_to) ++(*n_seqs); // For the advance to align bytes
+
+    printf("seqs at 1: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[1].data_database->n_seqs, ldbargs[1].read_from, ldbargs[1].read_to);
+
+    
     for(i=i; i<3*(a_fourth) - 16; i+=16){
         ptr1 = (__m128i *) &seq_buffer[i];
         res = _mm_cmpeq_epi8(*ptr1, *ptr2);
@@ -115,12 +123,14 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     }
     while(seq_buffer[i] != '>') ++i;
     ldbargs[2].read_to = i;
-    ldbargs[2].data_database->n_seqs = *n_seqs - ldbargs[1].data_database->n_seqs;
-    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-
-
-
+    ldbargs[2].data_database->n_seqs = *n_seqs - (ldbargs[1].data_database->n_seqs + ldbargs[0].data_database->n_seqs);
     ldbargs[3].read_from = i;
+    while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
+    if(i > ldbargs[3].read_to) ++(*n_seqs); // For the advance to align bytes
+
+    printf("seqs at 2: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[2].data_database->n_seqs, ldbargs[2].read_from, ldbargs[2].read_to);
+
+    
     for(i=i; i<(*t_len) - 16; i+=16){
         ptr1 = (__m128i *) &seq_buffer[i];
         res = _mm_cmpeq_epi8(*ptr1, *ptr2);
@@ -147,7 +157,9 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
         ++i;
     }
     ldbargs[3].read_to = *t_len;
-    ldbargs[3].data_database->n_seqs = *n_seqs - ldbargs[2].data_database->n_seqs;
+    ldbargs[3].data_database->n_seqs = *n_seqs - (ldbargs[2].data_database->n_seqs + ldbargs[1].data_database->n_seqs + ldbargs[0].data_database->n_seqs);
+
+    printf("seqs at 3: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[3].data_database->n_seqs, ldbargs[3].read_from, ldbargs[3].read_to);
 
 }
 
