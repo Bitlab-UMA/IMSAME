@@ -264,6 +264,7 @@ int main(int argc, char ** av){
     end = clock();
 
     //data_database.total_len = pos_in_database;
+    //printf("tables have %"PRIu64" %"PRIu64", %"PRIu64" %"PRIu64"\n", data_database[0].total_len, data_database[1].total_len, data_database[2].total_len, data_database[3].total_len);
     uint64_t full_db_len = data_database[0].total_len + data_database[1].total_len + data_database[2].total_len + data_database[3].total_len;
 
     fprintf(stdout, "[INFO] Database loaded and of length %"PRIu64" (%"PRIu64" sequences). Hash table building took %e seconds\n", full_db_len, full_db_n_seqs, (double)(end-begin)/CLOCKS_PER_SEC);
@@ -406,10 +407,28 @@ int main(int argc, char ** av){
     // Make the full db
     uint64_t contained_reads[FIXED_LOADING_THREADS];
     uint64_t base_coordinates[FIXED_LOADING_THREADS];
-    for(i=0;i<FIXED_LOADING_THREADS;i++){
-        contained_reads[i] = args_DB_load[i].contained_reads;
-        base_coordinates[i] = args_DB_load[i].base_coordinates;
+    //contained_reads[0] = 0;
+    //base_coordinates[0] = 0;
+    for(i=1;i<FIXED_LOADING_THREADS;i++){
+        contained_reads[i] = args_DB_load[i-1].contained_reads + contained_reads[i-1];
+        base_coordinates[i] = args_DB_load[i-1].base_coordinates + base_coordinates[i-1];
     }
+
+    /*
+    for(i = 0; i < 4 ; i++){
+        printf("total len: %"PRIu64"\n", data_database[i].total_len);
+        
+    }
+    getchar();
+    for(i = 0; i < 4 ; i++){
+        
+        printf("c:%"PRIu64" - b:%"PRIu64"\n", contained_reads[i], base_coordinates[i]);
+    }
+    getchar();
+    */
+
+
+
     SeqInfo final_db;
     final_db.sequences = (unsigned char *) malloc(full_db_len * sizeof(unsigned char));
     if(final_db.sequences == NULL) terror ("Could not allocate final database sequences");
@@ -424,13 +443,13 @@ int main(int argc, char ** av){
     while(i<data_database[0].n_seqs){ final_db.start_pos[i] = data_database[0].start_pos[i]; ++i; }
     j=0;
     //printf("switch\n");
-    while(j<data_database[1].n_seqs){ final_db.start_pos[i] = data_database[1].start_pos[j]; ++i; ++j; }
+    while(j<data_database[1].n_seqs){ final_db.start_pos[i] = data_database[1].start_pos[j] + data_database[0].total_len; ++i; ++j; }
     j=0;
     //printf("switch\n");
-    while(j<data_database[2].n_seqs){ final_db.start_pos[i] = data_database[2].start_pos[j]; ++i; ++j; }
+    while(j<data_database[2].n_seqs){ final_db.start_pos[i] = data_database[2].start_pos[j] + data_database[1].total_len + data_database[0].total_len; ++i; ++j; }
     j=0;
     //printf("switch\n");
-    while(j<data_database[3].n_seqs){ final_db.start_pos[i] = data_database[3].start_pos[j]; ++i; ++j; }
+    while(j<data_database[3].n_seqs){ final_db.start_pos[i] = data_database[3].start_pos[j] + data_database[2].total_len + data_database[1].total_len + data_database[0].total_len; ++i; ++j; }
     
     final_db.total_len = full_db_len;
     final_db.n_seqs = full_db_n_seqs;
@@ -442,11 +461,12 @@ int main(int argc, char ** av){
     
 
     // Debug
-    
+    /*
     for(i=0; i<full_db_n_seqs-1; i++){
         printf("%"PRIu64" - %"PRIu64"\n", final_db.start_pos[i], final_db.start_pos[i+1]);
-        //getchar();
+        getchar();
     }
+    */
     
     
 
@@ -455,13 +475,7 @@ int main(int argc, char ** av){
         hta[i].id = i;
         hta[i].database = &final_db;
         hta[i].query = &data_query;
-        hta[i].contained_reads[0] = data_database[0].sequences[0];
-        hta[i].contained_reads[1] = data_database[0].sequences[0];
-        hta[i].contained_reads[2] = data_database[0].sequences[0];
-        hta[i].contained_reads[3] = data_database[0].sequences[0];
-
         
-    uint64_t base_coordinates[FIXED_LOADING_THREADS];
         //hta[i].from = i * reads_per_thread;
         //hta[i].to = (i + 1) * reads_per_thread;
         hta[i].container_a = ct_A;

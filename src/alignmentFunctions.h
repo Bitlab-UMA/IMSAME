@@ -75,7 +75,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
     Compute the alignment and evalue of a given hit
     The positions pos_database and pos_query refer to the last match in the hit
 */
-void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_database, uint64_t pos_query, uint64_t curr_read, uint64_t curr_db_seq, Quickfrag * qf);
+void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_database, uint64_t pos_query, uint64_t curr_read, uint64_t curr_db_seq, Quickfrag * qf, uint64_t offset_db_reads, uint64_t offset_db_coordinates);
 
 /*
     Computes the cell path for the y points given incremental x

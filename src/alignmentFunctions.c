@@ -71,13 +71,30 @@ void * load_input(void * a){
 
     char c = ldbargs->temp_seq_buffer[c_pos];
 
+    /*
+    if(ldbargs->thread_id == 'A'){
+        printf("read to is: %"PRIu64"\n", ldbargs->read_to);
+        printf("make sure: %c %c %c\n", ldbargs->temp_seq_buffer[ldbargs->read_to-1], ldbargs->temp_seq_buffer[ldbargs->read_to], ldbargs->temp_seq_buffer[ldbargs->read_to+1]);
+        
+        uint64_t z = ldbargs->read_to-1;
+        while(ldbargs->temp_seq_buffer[z] != '>'){
+            printf("%c", ldbargs->temp_seq_buffer[z]);
+            z--;
+        }
+        getchar();
+    }
+    if(ldbargs->thread_id == 'C'){
+        printf("HELLOOOOOOO im going from %"PRIu64"\n", ldbargs->read_from);
+    }
+    */
+
     while(c_pos < ldbargs->read_to){
         
 
         if(c == '>'){
             
             //if(ldbargs->thread_id == 'G') printf("putting in %"PRIu64" @ %"PRIu64"\n", curr_seq, c_pos);
-            ldbargs->data_database->start_pos[curr_seq] = c_pos; ++curr_seq;
+            ldbargs->data_database->start_pos[curr_seq] = pos_in_database; ++curr_seq;
 
             while(c != '\n'){ c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos; }  //Skip ID
 
@@ -114,7 +131,7 @@ void * load_input(void * a){
                         pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = ldbargs->data_database->n_seqs-1;
+                        pointer->s_id = curr_seq-1;
                         pointer->next = NULL;
 
                     
@@ -131,7 +148,7 @@ void * load_input(void * a){
 
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = ldbargs->data_database->n_seqs-1;
+                        pointer->s_id = curr_seq-1;
                         pointer->next = aux;
 
                     }
@@ -167,10 +184,23 @@ void * load_input(void * a){
         }
     }
     */
-    ldbargs->data_database->start_pos[curr_seq] = c_pos;
+    /*
+    if(ldbargs->thread_id == 'A'){
+        printf("\nAT %"PRIu64", and pos_database = %"PRIu64"\n", ldbargs->data_database->start_pos[curr_seq-1], pos_in_database);        
+        uint64_t z = pos_in_database;
+        while(z > ldbargs->data_database->start_pos[curr_seq-1]){
+            printf("%c", ldbargs->data_database->sequences[z]);
+            z--;
+        }
+
+        getchar();
+    }
+    */
+
+    ldbargs->data_database->start_pos[curr_seq] = pos_in_database;
     ldbargs->data_database->total_len = pos_in_database;
     ldbargs->contained_reads = curr_seq;
-    ldbargs->base_coordinates = c_pos;
+    ldbargs->base_coordinates = pos_in_database;
     return NULL;
 }
 
@@ -261,10 +291,12 @@ typedef struct {
         curr_pos = hta->query->start_pos[curr_read]; //Skip the ">"
         c = (char) hta->query->sequences[curr_pos];
 
+        printf("Im doing from %"PRIu64" to %"PRIu64"\n", my_current_task->r1, my_current_task->r2);
+        //getchar();
 
-        while(curr_read < my_current_task->r2 && curr_pos < hta->query->total_len){
-
-            if(curr_read < hta->query->n_seqs - 1) up_to = hta->query->start_pos[curr_read+1]-1; else up_to = hta->query->total_len;
+        while((curr_read < my_current_task->r2 || curr_read == hta->query->n_seqs) && curr_pos < hta->query->total_len){
+            
+            if(curr_read != hta->query->n_seqs) up_to = hta->query->start_pos[curr_read+1]; else up_to = hta->query->total_len;
             //printf("Currrpos: %"PRIu64" up to: %"PRIu64" on read: %"PRIu64"\n", curr_pos, up_to, curr_read);
 
             if (curr_pos == up_to) { // Comment, empty or quality (+) line
@@ -272,7 +304,7 @@ typedef struct {
                 #ifdef VERBOSE
                 printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);
                 #endif
-                //if(NWaligned == 0){ printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned); getchar();}
+                //if(NWaligned == 0){ printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned);}
                 //printf("Read: %"PRIu64" yielded (%d)\n", curr_read, NWaligned); if(NWaligned == 0) getchar();
                 NWaligned = 0;
                 //fprintf(stdout, "Seq %"PRIu64" has %"PRIu64" hits and tried to align %"PRIu64" times\n", curr_read, n_hits, alignments_tried);
@@ -286,7 +318,8 @@ typedef struct {
 
                 //if(hta->full_comp == TRUE) memset(&hta->markers[my_current_task->r1], 0, my_current_task->r2 - my_current_task->r1 + 1); // Reset used tags
                 if(hta->full_comp == TRUE) memset(&hta->markers[0], FALSE, hta->database->n_seqs); // Reset used tags
-
+                
+                printf("On current read %"PRIu64"\n", curr_read);
                 curr_read++;
                 continue;
             }
@@ -300,6 +333,8 @@ typedef struct {
 
             if (crrSeqL >= custom_kmer) { // Full well formed sequence
             
+                printf("comparing hit: %11s\n", (char *)&curr_kmer[0]);
+
                 // Choose table
                 /*
                 if(curr_kmer[0] == (unsigned char) 'A'){
@@ -349,19 +384,20 @@ typedef struct {
 
                 
 
-                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id] == 0))){
+                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
                     // ADD OFFSET CUCOOOOOOOOOOOOOOOOOOOOOO!!!!!!!!!!!!!!!
-                    curr_db_seq = aux->s_id + hta->contained_reads;
-                    pos_of_hit = aux->pos;
+                    //printf("my current table is %u\n", current_table);
+                    curr_db_seq = aux->s_id + hta->contained_reads[current_table];
+                    pos_of_hit = aux->pos + hta->base_coordinates[current_table];
                     if(hta->hits != NULL){
                         hta->hits[curr_db_seq]++;
                         goto only_hits; // Count only hits and skip the rest
                     } 
                     
-                    fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                    //fprintf(stdout, "Launching curr_read: %"PRIu64" @ %"PRIu64", vs curr_db_read: %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
                     /*
                     if(curr_read == 534) fprintf(stdout, "Launching %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
                     */
@@ -402,8 +438,10 @@ typedef struct {
                         */
                         //printf("prev_diag: %"PRId64"- currdiag: %"PRId64"\n", last_diagonal, curr_diagonal);
                         //printf("\t covers to [%"PRIu64"+%"PRIu64"=%"PRIu64"] [%"PRIu64"] \n", qf.x_start, qf.t_len, qf.x_start+qf.t_len, pos_of_hit); getchar();
-                        if(hta->full_comp == FALSE || (hta->full_comp == TRUE && hta->markers[aux->s_id] == FALSE)){
-                            alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf);
+                        if(hta->full_comp == FALSE || (hta->full_comp == TRUE && hta->markers[curr_db_seq] == FALSE)){
+
+                            //if(current_table > 0) getchar();
+                            alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf, hta->contained_reads[current_table], hta->base_coordinates[current_table]);
                             last_diagonal = curr_diagonal;
                         }else{
                             qf.e_value = 100000000;
@@ -440,7 +478,7 @@ typedef struct {
                             xlen = hta->database->total_len - hta->database->start_pos[curr_db_seq];
                         }else{
                             xlen = hta->database->start_pos[curr_db_seq+1] - hta->database->start_pos[curr_db_seq];
-                            printf("!!!\n%"PRIu64", %"PRIu64" :: %"PRIu64"; its db->start_pos[curr_db_seq]  db->start_pos[curr_db_seq+1]  curr_db_seq\n", hta->database->start_pos[curr_db_seq], hta->database->start_pos[curr_db_seq+1], curr_db_seq);
+                            //printf("!!!\n%"PRIu64", %"PRIu64" :: %"PRIu64"; its db->start_pos[curr_db_seq]  db->start_pos[curr_db_seq+1]  curr_db_seq\n", hta->database->start_pos[curr_db_seq], hta->database->start_pos[curr_db_seq+1], curr_db_seq);
                         }
                         if(curr_read == hta->query->n_seqs-1){
                             ylen = hta->query->total_len - hta->query->start_pos[curr_read];
@@ -459,9 +497,14 @@ typedef struct {
                         #endif
 
                         //fprintf(stdout, "dbFragxs %"PRIu64", dbs %"PRIu64", rFragys %"PRIu64" rys %"PRIu64"\n", qf.x_start, hta->database->start_pos[curr_db_seq], qf.y_start, hta->query->start_pos[curr_read]);
-                        //fprintf(stdout, "Launching NW %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": \n", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
-
-                        printf("CHECK THIS: qf::%"PRIu64", %"PRIu64"\n", qf.x_start, qf.y_start);
+                        /*
+                        printf("at table: %u\n", current_table);
+                        fprintf(stdout, "Launching curr_read: %"PRIu64" @ %"PRIu64", vs curr_db_read: %"PRIu64" @ %"PRIu64": ", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                        fprintf(stdout, "Launching NW %"PRIu64" @ %"PRIu64", vs %"PRIu64" @ %"PRIu64": \n", curr_read, curr_pos+1, curr_db_seq, pos_of_hit);
+                        printf("have len: %"PRIu64", %"PRIu64"\n", xlen, ylen);
+                        printf("Quickfrag (xs, ys): qf::%"PRIu64", %"PRIu64", tlen:%"PRIu64"\n", qf.x_start, qf.y_start, qf.t_len);
+                        printf("Yea, but start and end of read in db is: %"PRIu64" - %"PRIu64"\n", hta->database->start_pos[curr_db_seq], hta->database->start_pos[curr_db_seq+1]);
+                        */
 
                         p1.x = qf.x_start - hta->database->start_pos[curr_db_seq];
                         //p1.y = qf.y_start - hta->query->start_pos[curr_read];
@@ -474,8 +517,7 @@ typedef struct {
                         #ifdef VERBOSE
                         fprintf(stdout, "p0 (%"PRIu64", %"PRIu64") p1 (%"PRIu64", %"PRIu64") p2 (%"PRIu64", %"PRIu64") p3 (%"PRIu64", %"PRIu64")\n", p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
                         #endif
-
-                        fprintf(stdout, "p0 (%"PRIu64", %"PRIu64") p1 (%"PRIu64", %"PRIu64") p2 (%"PRIu64", %"PRIu64") p3 (%"PRIu64", %"PRIu64")\n", p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+                        //fprintf(stdout, "p0 (%"PRIu64", %"PRIu64") p1 (%"PRIu64", %"PRIu64") p2 (%"PRIu64", %"PRIu64") p3 (%"PRIu64", %"PRIu64")\n", p0.x, p0.y, p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
                         
                         calculate_y_cell_path(p0, p1, p2, p3, cell_path_y);
 
@@ -492,7 +534,7 @@ typedef struct {
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
                         // Set the read to already aligned so that it does not repeat
-                        if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
+                        if(hta->full_comp == TRUE) hta->markers[curr_db_seq] = 1;
                         
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
@@ -504,9 +546,10 @@ typedef struct {
                             if(already_aligned == FALSE){
                                 hta->accepted_query_reads++;
                                 already_aligned = TRUE;
+                                //printf("accepted: %"PRIu64"\n", hta->accepted_query_reads);
                             }
                             
-                            if(hta->full_comp == TRUE) hta->markers[aux->s_id] = 1;
+                            if(hta->full_comp == TRUE) hta->markers[curr_db_seq] = 1;
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
                                 fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)((long double)100*ba.identities/(ba.length-(ba.igaps+ba.egaps)))), ylen);
@@ -531,7 +574,7 @@ typedef struct {
                     //printf("Hit comes from %"PRIu64", %"PRIu64"\n", pos_of_hit, curr_pos);
                     only_hits:
                     aux = aux->next;
-                    while(aux == NULL && current_table-1 < FIXED_LOADING_THREADS){
+                    while(aux == NULL && current_table < FIXED_LOADING_THREADS-1){
                         ++current_table;
                         aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
@@ -655,7 +698,7 @@ void build_alignment(char * reconstruct_X, char * reconstruct_Y, uint64_t curr_d
 
 }
 
-void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_database, uint64_t pos_query, uint64_t curr_read, uint64_t curr_db_seq, Quickfrag * qf){
+void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_database, uint64_t pos_query, uint64_t curr_read, uint64_t curr_db_seq, Quickfrag * qf, uint64_t offset_db_reads, uint64_t offset_db_coordinates){
 
     int64_t read_x_start, read_x_end, read_y_start, read_y_end;
 
@@ -667,7 +710,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 	    read_x_end = database->start_pos[curr_db_seq+1] - 1;
     }
 
-    printf("read x start -> %"PRId64", end -> %"PRId64"\n", read_x_start, read_x_end);
+    //printf("read x start -> %"PRId64", end -> %"PRId64" btw: %"PRIu64"\n", read_x_start, read_x_end, database->n_seqs);
 
     if(curr_read == query->n_seqs-1){
         read_y_start = query->start_pos[curr_read];
@@ -677,8 +720,8 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
         read_y_end = query->start_pos[curr_read+1] - 1;
     }
 
-    printf("db_end %"PRId64" query_end %"PRId64"\n", read_x_end, read_y_end);
-    printf("pos database: %"PRIu64"\n", pos_database);
+    //printf("db_end %"PRId64" query_end %"PRId64"\n", read_x_end, read_y_end);
+    //printf("pos database: %"PRIu64"\n", pos_database);
     int64_t curr_pos_db = (int64_t) pos_database;
     int64_t curr_pos_qy = (int64_t) pos_query;
     int64_t final_end_x = (int64_t) pos_database - 1, final_start_x = final_end_x - custom_kmer + 1, final_start_y = pos_query - custom_kmer;
@@ -695,7 +738,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 	fprintf(stdout, "HIT: %s\n", le_hit);
 	fflush(stdout);
     */
-    printf("final start x: %"PRId64"\n", final_start_x);
+    //printf("final start x: %"PRId64"\n", final_start_x);
     int keep_going = 1;
 
     //Forward search
@@ -718,7 +761,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
     }
 
     //printf("pos here %"PRIu64" curr_pos_db, curr_pos_query %"PRIu64"\n", curr_pos_db, curr_pos_qy);
-    printf("final start x: %"PRId64"\n", final_start_x);
+    //printf("final start x: %"PRId64"\n", final_start_x);
     keep_going = 1;
     curr_pos_db = pos_database - custom_kmer - 1;
     curr_pos_qy = pos_query - custom_kmer - 1;
@@ -747,7 +790,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
 
     qf->t_len = final_end_x - final_start_x;
     
-    
+    /*
     char s1[1000];
     char s2[1000];
 
@@ -758,9 +801,18 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
     
 	fprintf(stdout, "%s\n%s\n------\n", s1, s2);
 	fflush(stdout);
+
+    printf("the real hit was:\n");
+    memcpy(s1, &database->sequences[pos_database-12+1], 12);
+    memcpy(s2, &query->sequences[pos_query-12+1], 12);
+    s1[12] = '\0';
+    s2[12] = '\0';
+    
+	fprintf(stdout, "%s\n%s\n------\n", s1, s2);
+	fflush(stdout);
     //getchar();
     printf("%"PRIu64"\n", idents);
-    
+    */
     
     long double rawscore = (idents*POINT) - (qf->t_len - idents)*(POINT);
 
@@ -770,7 +822,7 @@ void alignmentFromQuickHits(SeqInfo * database, SeqInfo * query, uint64_t pos_da
     }else{
         t_len = (long double) query->start_pos[curr_read+1] - query->start_pos[curr_read];
     }
-    printf("final start x: %"PRId64"\n", final_start_x);
+    //printf("final start x: %"PRId64"\n", final_start_x);
     qf->x_start = final_start_x;
     qf->y_start = final_start_y;
     qf->e_value = (long double) QF_KARLIN*t_len*database->total_len*expl(-QF_LAMBDA * rawscore);
