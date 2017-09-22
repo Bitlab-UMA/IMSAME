@@ -246,7 +246,7 @@ typedef struct {
 
     //To keep track of which reads are we reading
     uint64_t curr_read, curr_db_seq, xlen, ylen;
-    uint64_t crrSeqL, pos_of_hit;
+    uint64_t crrSeqL, pos_of_hit = 0xFFFFFFFFFFFFFFFF;
 
     //Reading from buffer
     char c;
@@ -258,16 +258,19 @@ typedef struct {
     uint64_t n_hits, alignments_tried;
 
     BasicAlignment ba; //The resulting alignment from the NW
-    uint64_t curr_pos; //Reading-head position
-    uint64_t up_to;
+    uint64_t curr_pos = 0; //Reading-head position
+    uint64_t up_to = 0;
 
     int64_t last_diagonal = INT64_MIN; // Diagonal to skip repeated hits
     unsigned char already_aligned = FALSE; // To not count more times the same read
     
 
+    
+
     //Get next operation in queue
     while(NULL != ( my_current_task = get_task_from_queue(hta->queue_head, hta->lock))){
         //Initialize all variables
+        
         qf.x_start = qf.y_start = qf.t_len = 0;
         qf.e_value = LDBL_MAX;
         last_diagonal = INT64_MIN;
@@ -291,12 +294,14 @@ typedef struct {
         curr_pos = hta->query->start_pos[curr_read]; //Skip the ">"
         c = (char) hta->query->sequences[curr_pos];
 
-        printf("Im doing from %"PRIu64" to %"PRIu64"\n", my_current_task->r1, my_current_task->r2);
+        //printf("Im doing from %"PRIu64" to %"PRIu64", nseqs=%"PRIu64"\n", my_current_task->r1, my_current_task->r2, hta->query->n_seqs);
         //getchar();
 
-        while((curr_read < my_current_task->r2 || curr_read == hta->query->n_seqs) && curr_pos < hta->query->total_len){
+        while(curr_read < my_current_task->r2 && curr_pos < hta->query->total_len){
+
             
-            if(curr_read != hta->query->n_seqs) up_to = hta->query->start_pos[curr_read+1]; else up_to = hta->query->total_len;
+            
+            if(curr_read != hta->query->n_seqs) up_to = hta->query->start_pos[curr_read+1]-1; else up_to = hta->query->total_len;
             //printf("Currrpos: %"PRIu64" up to: %"PRIu64" on read: %"PRIu64"\n", curr_pos, up_to, curr_read);
 
             if (curr_pos == up_to) { // Comment, empty or quality (+) line
@@ -319,8 +324,8 @@ typedef struct {
                 //if(hta->full_comp == TRUE) memset(&hta->markers[my_current_task->r1], 0, my_current_task->r2 - my_current_task->r1 + 1); // Reset used tags
                 if(hta->full_comp == TRUE) memset(&hta->markers[0], FALSE, hta->database->n_seqs); // Reset used tags
                 
-                printf("On current read %"PRIu64"\n", curr_read);
                 curr_read++;
+                //printf("On current read %"PRIu64"\n", curr_read);
                 continue;
             }
 
@@ -333,7 +338,9 @@ typedef struct {
 
             if (crrSeqL >= custom_kmer) { // Full well formed sequence
             
-                printf("comparing hit: %11s\n", (char *)&curr_kmer[0]);
+                
+                //printf("comparing hit: %.11s\n", (char *)&curr_kmer[0]);
+                //getchar();
 
                 // Choose table
                 /*
@@ -385,11 +392,13 @@ typedef struct {
                 
 
                 while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
+
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
                     // ADD OFFSET CUCOOOOOOOOOOOOOOOOOOOOOO!!!!!!!!!!!!!!!
                     //printf("my current table is %u\n", current_table);
+                    //printf("check this woop: %"PRIu64" - %"PRIu64" - %"PRIu64" - %"PRIu64"\n", aux->s_id, hta->contained_reads[current_table], aux->pos, hta->base_coordinates[current_table]);
                     curr_db_seq = aux->s_id + hta->contained_reads[current_table];
                     pos_of_hit = aux->pos + hta->base_coordinates[current_table];
                     if(hta->hits != NULL){
@@ -408,7 +417,7 @@ typedef struct {
 
                     
                     
-                    if( (last_diagonal != curr_diagonal && !(qf.x_start <= (pos_of_hit + custom_kmer) && pos_of_hit <= (qf.x_start + qf.t_len)))/* && (curr_read == 3 && curr_db_seq == 2942)*/){
+                    if( (last_diagonal != curr_diagonal && !(qf.x_start <= (pos_of_hit + custom_kmer) && pos_of_hit <= (qf.x_start + qf.t_len)))){
                         
                         /*
                         if(curr_db_seq == hta->database->n_seqs-1){
@@ -594,7 +603,7 @@ typedef struct {
                     crrSeqL -= 1;
                 }
             }
-        
+            //printf("current pos: %"PRIu64"\n", curr_pos);
             curr_pos++;
             if(curr_pos < hta->query->total_len) c = (char) hta->query->sequences[curr_pos];
             

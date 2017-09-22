@@ -64,7 +64,7 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     ldbargs[0].data_database->n_seqs = *n_seqs;
     ldbargs[1].read_from = i;
     while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-    if(i > ldbargs[1].read_to) ++(*n_seqs); // For the advance to align bytes
+    if(i > ldbargs[1].read_from) ++(*n_seqs); // For the advance to align bytes
 
     //printf("seqs at 0: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[0].data_database->n_seqs, ldbargs[0].read_from, ldbargs[0].read_to);
 
@@ -95,7 +95,7 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     ldbargs[1].data_database->n_seqs = *n_seqs - ldbargs[0].data_database->n_seqs;
     ldbargs[2].read_from = i;
     while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-    if(i > ldbargs[2].read_to) ++(*n_seqs); // For the advance to align bytes
+    if(i > ldbargs[2].read_from) ++(*n_seqs); // For the advance to align bytes
 
     //printf("seqs at 1: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[1].data_database->n_seqs, ldbargs[1].read_from, ldbargs[1].read_to);
 
@@ -126,7 +126,7 @@ void get_num_seqs_and_length(char * seq_buffer, uint64_t * n_seqs, uint64_t * t_
     ldbargs[2].data_database->n_seqs = *n_seqs - (ldbargs[1].data_database->n_seqs + ldbargs[0].data_database->n_seqs);
     ldbargs[3].read_from = i;
     while(i % 16 != 0){ ++i; if(seq_buffer[i] == '>') terror("Sequence of length < 16"); }
-    if(i > ldbargs[3].read_to) ++(*n_seqs); // For the advance to align bytes
+    if(i > ldbargs[3].read_from) ++(*n_seqs); // For the advance to align bytes
 
     //printf("seqs at 2: %"PRIu64" readfrom: %"PRIu64", readto: %"PRIu64", \n", ldbargs[2].data_database->n_seqs, ldbargs[2].read_from, ldbargs[2].read_to);
 
@@ -205,6 +205,7 @@ Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, 
 
     }
     //printf("TREADS was %"PRIu64"\n", t_reads);    
+    queues[current_queue-1].r2 = t_reads;
     return &queues[0];
 }
 

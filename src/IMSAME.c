@@ -144,19 +144,28 @@ int main(int argc, char ** av){
 
     //Mempool_l * mp = (Mempool_l *) malloc(MAX_MEM_POOLS*sizeof(Mempool_l));
     //if(mp == NULL) terror("Could not allocate vectors for memory pools");
-    Mempool_l mp[FIXED_LOADING_THREADS][MAX_MEM_POOLS];
+    //Mempool_l mp[FIXED_LOADING_THREADS][MAX_MEM_POOLS];
+
+    
+    Mempool_l ** mp = (Mempool_l **) malloc(FIXED_LOADING_THREADS*sizeof(Mempool_l *));
+    if(mp == NULL) terror("Could not allocate memory pools");
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+        mp[i] = (Mempool_l *) malloc(MAX_MEM_POOLS*sizeof(Mempool_l));
+        if(mp[i] == NULL) terror("Could not allocate individual memory pools");
+    }
+    
 
     Container * ct_A = (Container *) calloc(1, sizeof(Container));
     if(ct_A == NULL) terror("Could not allocate container A");
     Container * ct_B = (Container *) calloc(1, sizeof(Container));
-    if(ct_B == NULL) terror("Could not allocate container B");
+    if(ct_B == NULL)    terror("Could not allocate container B");
     Container * ct_C = (Container *) calloc(1, sizeof(Container));
     if(ct_C == NULL) terror("Could not allocate container C");
     Container * ct_D = (Container *) calloc(1, sizeof(Container));
     if(ct_D == NULL) terror("Could not allocate container D");
 
     SeqInfo data_database[FIXED_LOADING_THREADS];
-    uint64_t full_db_n_seqs;
+    uint64_t full_db_n_seqs = 0;
     
     
     unsigned char curr_kmer[custom_kmer];
@@ -201,6 +210,11 @@ int main(int argc, char ** av){
     args_DB_load[1].ct = ct_B;
     args_DB_load[2].ct = ct_C;
     args_DB_load[3].ct = ct_D;
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+        args_DB_load[i].read_to = 0;
+        args_DB_load[i].read_from = 0;
+    }
+    
 
     get_num_seqs_and_length(load_buffer, &full_db_n_seqs, &db_temp_size, args_DB_load);
 
@@ -226,6 +240,7 @@ int main(int argc, char ** av){
     args_DB_load[1].thread_id = 'C';
     args_DB_load[2].thread_id = 'G';
     args_DB_load[3].thread_id = 'T';
+    
 
     for(i=0; i<FIXED_LOADING_THREADS; i++){
 
@@ -233,8 +248,11 @@ int main(int argc, char ** av){
         database_positions[i] = (uint64_t *) malloc((1+data_database[i].n_seqs)*sizeof(uint64_t));
         if(seq_vector_database[i] == NULL || database_positions[i] == NULL) terror("Could not allocate memory for individual database vectors");
         data_database[i].sequences = seq_vector_database[i];
+        
+        
         //To hold all information related to database
-        init_mem_pool_llpos(&mp[i][0]);
+        args_DB_load[i].n_pools_used = 0;
+        init_mem_pool_llpos(&mp[i][args_DB_load[i].n_pools_used]);
 
         data_database[i].start_pos = database_positions[i];
         data_database[i].total_len = (args_DB_load[i].read_to - args_DB_load[i].read_from);
@@ -243,7 +261,7 @@ int main(int argc, char ** av){
         args_DB_load[i].t_len = db_temp_size;
         args_DB_load[i].word_size = custom_kmer;
         args_DB_load[i].mp = mp[i];
-        args_DB_load[i].n_pools_used = 0;
+        
         if( 0 != (error = pthread_create(&loading_threads[i], NULL, load_input, (void *) (&args_DB_load[i])) )){
             fprintf(stdout, "[@loading] Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
         }
@@ -253,6 +271,10 @@ int main(int argc, char ** av){
     for(i=0;i<FIXED_LOADING_THREADS;i++){
         pthread_join(loading_threads[i], NULL);
     }
+
+    // Deallocate memory not needed anymore
+    free(load_buffer);
+    free(loading_threads);
     
 
 
@@ -386,7 +408,9 @@ int main(int argc, char ** av){
         printf("current_piece: %"PRIu64"-%"PRIu64"\n", traverse->r1, traverse->r2);
         traverse = traverse->next;
     }
+    getchar();
     */
+    
 
 
     //reads_per_thread = (uint64_t) (floorl((long double) data_query.n_seqs / (long double) n_threads));
@@ -405,8 +429,8 @@ int main(int argc, char ** av){
     */
 
     // Make the full db
-    uint64_t contained_reads[FIXED_LOADING_THREADS];
-    uint64_t base_coordinates[FIXED_LOADING_THREADS];
+    uint64_t contained_reads[FIXED_LOADING_THREADS] = {0,0,0,0};
+    uint64_t base_coordinates[FIXED_LOADING_THREADS] = {0,0,0,0};
     //contained_reads[0] = 0;
     //base_coordinates[0] = 0;
     for(i=1;i<FIXED_LOADING_THREADS;i++){
@@ -420,12 +444,15 @@ int main(int argc, char ** av){
         
     }
     getchar();
+    */
+    /*
     for(i = 0; i < 4 ; i++){
         
         printf("c:%"PRIu64" - b:%"PRIu64"\n", contained_reads[i], base_coordinates[i]);
     }
     getchar();
     */
+    
 
 
 
@@ -609,11 +636,17 @@ int main(int argc, char ** av){
 
     pthread_mutex_destroy(&lock);
 
+    
+
     for(i=0; i<FIXED_LOADING_THREADS; i++){
         for(j=0;j<=args_DB_load[i].n_pools_used;j++){
-            free(mp[j][i].base);
+            free(mp[i][j].base);
         }
+        free(mp[i]);
     }
+    free(mp);
+    free(seq_vector_database);
+    free(database_positions);
     
     //Deallocate queue (its allocated as an array)
     free(first_task);
