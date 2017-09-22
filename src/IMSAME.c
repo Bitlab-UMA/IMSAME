@@ -220,7 +220,7 @@ int main(int argc, char ** av){
 
     end = clock();
     fprintf(stdout, "[INFO] Loading into RAM and counting took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
-
+    begin = clock();
     
     /*
     char * temp_seq_buffer;
@@ -275,20 +275,20 @@ int main(int argc, char ** av){
     // Deallocate memory not needed anymore
     free(load_buffer);
     free(loading_threads);
+
     
-
-
-    begin = clock();
+    
     //fprintf(stdout, "[INFO] WARNING!!!!!!!!! USING NON OVERLAPPING MERS, WHICH IS NOT INCLUDED AS OPTION!!!! DISABLE\n");
 
     
 
-    end = clock();
+    
 
     //data_database.total_len = pos_in_database;
     //printf("tables have %"PRIu64" %"PRIu64", %"PRIu64" %"PRIu64"\n", data_database[0].total_len, data_database[1].total_len, data_database[2].total_len, data_database[3].total_len);
     uint64_t full_db_len = data_database[0].total_len + data_database[1].total_len + data_database[2].total_len + data_database[3].total_len;
 
+    end = clock();
     fprintf(stdout, "[INFO] Database loaded and of length %"PRIu64" (%"PRIu64" sequences). Hash table building took %e seconds\n", full_db_len, full_db_n_seqs, (double)(end-begin)/CLOCKS_PER_SEC);
     //close database
     fclose(database);
