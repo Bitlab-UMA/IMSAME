@@ -121,11 +121,11 @@ int main(int argc, char ** av){
 
 
     end = clock();
-    fprintf(stdout, "[INFO] Initialization took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
+    fprintf(stdout, "[INFO] Initialization took %e seconds.\n", (double)(end-begin)/CLOCKS_PER_SEC);
 
     //Variables to account for positions
     //Print info
-    fprintf(stdout, "[INFO] Loading database\n");
+    fprintf(stdout, "[INFO] Loading database.\n");
     //Variables to read kmers
     char c = 'N'; //Char to read character
     //Current length of array and variables for the buffer
@@ -214,12 +214,14 @@ int main(int argc, char ** av){
         args_DB_load[i].read_to = 0;
         args_DB_load[i].read_from = 0;
     }
+
+    //uint64_t a_fourth = db_temp_size / 4;
     
 
-    get_num_seqs_and_length(load_buffer, &full_db_n_seqs, &db_temp_size, args_DB_load);
+    //get_num_seqs_and_length(load_buffer, &full_db_n_seqs, &db_temp_size, args_DB_load);
 
     end = clock();
-    fprintf(stdout, "[INFO] Loading into RAM and counting took %e seconds \n", (double)(end-begin)/CLOCKS_PER_SEC);
+    fprintf(stdout, "[INFO] Loading into RAM took %e seconds.\n", (double)(end-begin)/CLOCKS_PER_SEC);
     begin = clock();
     
     /*
@@ -237,15 +239,17 @@ int main(int argc, char ** av){
     // Launch threads to process database
 
     args_DB_load[0].thread_id = 'A';
-    args_DB_load[1].thread_id = 'C';
-    args_DB_load[2].thread_id = 'G';
-    args_DB_load[3].thread_id = 'T';
+    args_DB_load[1].thread_id = 'B';
+    args_DB_load[2].thread_id = 'C';
+    args_DB_load[3].thread_id = 'D';
     
 
     for(i=0; i<FIXED_LOADING_THREADS; i++){
 
-        seq_vector_database[i] = (unsigned char *) malloc((args_DB_load[i].read_to - args_DB_load[i].read_from)*sizeof(unsigned char));
-        database_positions[i] = (uint64_t *) malloc((1+data_database[i].n_seqs)*sizeof(uint64_t));
+        //seq_vector_database[i] = (unsigned char *) malloc((args_DB_load[i].read_to - args_DB_load[i].read_from)*sizeof(unsigned char));
+        seq_vector_database[i] = (unsigned char *) malloc((READBUF)*sizeof(unsigned char));
+        //database_positions[i] = (uint64_t *) malloc((1+data_database[i].n_seqs)*sizeof(uint64_t));
+        database_positions[i] = (uint64_t *) malloc((INITSEQS)*sizeof(uint64_t));
         if(seq_vector_database[i] == NULL || database_positions[i] == NULL) terror("Could not allocate memory for individual database vectors");
         data_database[i].sequences = seq_vector_database[i];
         
@@ -255,8 +259,10 @@ int main(int argc, char ** av){
         init_mem_pool_llpos(&mp[i][args_DB_load[i].n_pools_used]);
 
         data_database[i].start_pos = database_positions[i];
-        data_database[i].total_len = (args_DB_load[i].read_to - args_DB_load[i].read_from);
-
+        
+        args_DB_load[i].n_allocs = 1;
+        args_DB_load[i].read_from = i * (db_temp_size / 4);
+        args_DB_load[i].read_to = (i+1) * (db_temp_size / 4);
         args_DB_load[i].temp_seq_buffer = load_buffer;
         args_DB_load[i].t_len = db_temp_size;
         args_DB_load[i].word_size = custom_kmer;
@@ -287,6 +293,7 @@ int main(int argc, char ** av){
     //data_database.total_len = pos_in_database;
     //printf("tables have %"PRIu64" %"PRIu64", %"PRIu64" %"PRIu64"\n", data_database[0].total_len, data_database[1].total_len, data_database[2].total_len, data_database[3].total_len);
     uint64_t full_db_len = data_database[0].total_len + data_database[1].total_len + data_database[2].total_len + data_database[3].total_len;
+    full_db_n_seqs = args_DB_load[0].contained_reads + args_DB_load[1].contained_reads + args_DB_load[2].contained_reads + args_DB_load[3].contained_reads;
 
     end = clock();
     fprintf(stdout, "[INFO] Database loaded and of length %"PRIu64" (%"PRIu64" sequences). Hash table building took %e seconds\n", full_db_len, full_db_n_seqs, (double)(end-begin)/CLOCKS_PER_SEC);

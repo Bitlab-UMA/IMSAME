@@ -55,7 +55,7 @@ void * load_input(void * a){
     char thread_id;
     */
 
-    uint64_t c_pos = ldbargs->read_from;
+    uint64_t c_pos;
     
     unsigned char curr_kmer[custom_kmer];
     unsigned char aux_kmer[custom_kmer+1];
@@ -69,7 +69,7 @@ void * load_input(void * a){
     char_converter[(unsigned char)'T'] = 3;
     llpos * aux, * pointer;
 
-    char c = ldbargs->temp_seq_buffer[c_pos];
+    char c;
 
     /*
     if(ldbargs->thread_id == 'A'){
@@ -88,6 +88,20 @@ void * load_input(void * a){
     }
     */
 
+    c_pos = ldbargs->read_from;
+    while(ldbargs->temp_seq_buffer[c_pos] != '>') ++c_pos;
+    ldbargs->read_from = c_pos;
+    c_pos = ldbargs->read_to;
+    while(ldbargs->temp_seq_buffer[c_pos] != '>' && c_pos < ldbargs->t_len) ++c_pos;
+    ldbargs->read_to = c_pos;
+
+    c_pos = ldbargs->read_from;
+    c = ldbargs->temp_seq_buffer[c_pos];
+
+    
+    //printf("thread going from %"PRIu64" to %"PRIu64"\n", ldbargs->read_from, ldbargs->read_to);
+    
+
     while(c_pos < ldbargs->read_to){
         
 
@@ -95,6 +109,18 @@ void * load_input(void * a){
             
             //if(ldbargs->thread_id == 'G') printf("putting in %"PRIu64" @ %"PRIu64"\n", curr_seq, c_pos);
             ldbargs->data_database->start_pos[curr_seq] = pos_in_database; ++curr_seq;
+
+            // REalloc sequences and sequence index
+            if(pos_in_database == READBUF*ldbargs->n_allocs){
+                ldbargs->n_allocs++; ldbargs->data_database->sequences = (unsigned char *) realloc(ldbargs->data_database->sequences, READBUF*ldbargs->n_allocs*sizeof(unsigned char));
+                if(ldbargs->data_database->sequences == NULL) terror("Could not reallocate temporary database");
+            }
+
+            if(curr_seq == INITSEQS*ldbargs->n_allocs){
+                ldbargs->n_allocs++; ldbargs->data_database->start_pos =  (uint64_t *) realloc(ldbargs->data_database->start_pos, INITSEQS*ldbargs->n_allocs*sizeof(uint64_t));
+            }
+
+
 
             while(c != '\n'){ c = ldbargs->temp_seq_buffer[c_pos]; ++c_pos; }  //Skip ID
 
@@ -108,11 +134,29 @@ void * load_input(void * a){
                     if(word_size < custom_kmer) ++word_size;
 
                     ldbargs->data_database->sequences[pos_in_database] = (unsigned char) c; ++pos_in_database;
+                    // REalloc sequences and sequence index
+                    if(pos_in_database == READBUF*ldbargs->n_allocs){
+                        ldbargs->n_allocs++; ldbargs->data_database->sequences = (unsigned char *) realloc(ldbargs->data_database->sequences, READBUF*ldbargs->n_allocs*sizeof(unsigned char));
+                        if(ldbargs->data_database->sequences == NULL) terror("Could not reallocate temporary database");
+                    }
+
+                    if(curr_seq == INITSEQS*ldbargs->n_allocs){
+                        ldbargs->n_allocs++; ldbargs->data_database->start_pos =  (uint64_t *) realloc(ldbargs->data_database->start_pos, INITSEQS*ldbargs->n_allocs*sizeof(uint64_t));
+                    }
                 }else{ //It can be anything (including N, Y, X ...)
 
                     if(c != '\n' && c != '\r' && c != '>'){
                         word_size = 0;
                         ldbargs->data_database->sequences[pos_in_database] = (unsigned char) 'N'; ++pos_in_database; //Convert to N
+                        // REalloc sequences and sequence index
+                        if(pos_in_database == READBUF*ldbargs->n_allocs){
+                            ldbargs->n_allocs++; ldbargs->data_database->sequences = (unsigned char *) realloc(ldbargs->data_database->sequences, READBUF*ldbargs->n_allocs*sizeof(unsigned char));
+                            if(ldbargs->data_database->sequences == NULL) terror("Could not reallocate temporary database");
+                        }
+
+                        if(curr_seq == INITSEQS*ldbargs->n_allocs){
+                            ldbargs->n_allocs++; ldbargs->data_database->start_pos =  (uint64_t *) realloc(ldbargs->data_database->start_pos, INITSEQS*ldbargs->n_allocs*sizeof(uint64_t));
+                        }
                     } 
                 }
                 if(word_size == custom_kmer){
@@ -200,6 +244,7 @@ void * load_input(void * a){
     ldbargs->data_database->start_pos[curr_seq] = pos_in_database;
     ldbargs->data_database->total_len = pos_in_database;
     ldbargs->contained_reads = curr_seq;
+    ldbargs->data_database->n_seqs = curr_seq;
     ldbargs->base_coordinates = pos_in_database;
     return NULL;
 }

@@ -78,6 +78,7 @@ typedef struct{
     uint64_t read_to;
     uint64_t contained_reads;
     uint64_t base_coordinates;
+    uint64_t n_allocs;
     char thread_id;
     Container * ct;
     Mempool_l * mp;
