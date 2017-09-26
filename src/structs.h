@@ -33,7 +33,11 @@ typedef struct linked_list_pos{
     uint64_t pos;
     uint64_t s_id;
     uint64_t extended_hash;
-    struct linked_list_pos * next;
+    //struct linked_list_pos * next;
+    uint64_t mem_pos;
+    int64_t next_mem_pos;
+    uint32_t pool_id;
+    int32_t next_pool_id;
 } llpos;
 
 //Struct for memory pool por lists

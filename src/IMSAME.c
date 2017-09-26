@@ -536,6 +536,7 @@ int main(int argc, char ** av){
         hta[i].queue_head = &queue_head;
         hta[i].lock = &lock;
         hta[i].full_comp = full_comp;
+        hta[i].mp_pools = mp;
         if(full_comp){
             hta[i].markers = marker_taggs[i];
         }

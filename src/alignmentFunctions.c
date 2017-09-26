@@ -17,7 +17,7 @@ int64_t compare_letters(unsigned char a, unsigned char b){
     return -POINT;
 }
 
-llpos * getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
+uint64_t getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
 
     if(mp[*n_pools_used].current == POOL_SIZE){
         *n_pools_used += 1;
@@ -26,11 +26,11 @@ llpos * getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
         
     }
 
-    llpos * new_pos = mp[*n_pools_used].base + mp[*n_pools_used].current;
-    mp[*n_pools_used].current++;
+    //llpos * new_pos = mp[*n_pools_used].base + mp[*n_pools_used].current;
+    
 
     
-    return new_pos;
+    return mp[*n_pools_used].current++;
 }
 
 void init_mem_pool_llpos(Mempool_l * mp){
@@ -162,7 +162,7 @@ void * load_input(void * a){
                 if(word_size == custom_kmer){
                     //write to hash table
                     
-		
+                    		
                     pointer = ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
@@ -172,11 +172,15 @@ void * load_input(void * a){
 
                     if(pointer == NULL){
 
-                        pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
+                        uint64_t m_pos = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
+                        pointer = (llpos *) (ldbargs->mp[ldbargs->n_pools_used].base + m_pos);
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
                         pointer->s_id = curr_seq-1;
-                        pointer->next = NULL;
+                        pointer->mem_pos = m_pos;
+                        pointer->next_mem_pos = -1;
+                        pointer->next_pool_id = -1;
+                        pointer->pool_id = ldbargs->n_pools_used;
 
                     
 
@@ -188,12 +192,16 @@ void * load_input(void * a){
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
-                        pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
+                        uint64_t m_pos = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
+                        pointer = (llpos *) (ldbargs->mp[ldbargs->n_pools_used].base + m_pos);
 
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
                         pointer->s_id = curr_seq-1;
-                        pointer->next = aux;
+                        pointer->mem_pos = m_pos;
+                        pointer->next_mem_pos = aux->mem_pos;
+                        pointer->next_pool_id = (int64_t) aux->pool_id;
+                        pointer->pool_id = ldbargs->n_pools_used;
 
                     }
 
@@ -627,7 +635,9 @@ typedef struct {
 
                     //printf("Hit comes from %"PRIu64", %"PRIu64"\n", pos_of_hit, curr_pos);
                     only_hits:
-                    aux = aux->next;
+                    //aux = aux->next;
+                    if(aux->next_mem_pos == -1) aux = NULL;
+                    else aux = (llpos *) hta->mp_pools[current_table][aux->next_pool_id].base + aux->next_mem_pos;
                     while(aux == NULL && current_table < FIXED_LOADING_THREADS-1){
                         ++current_table;
                         aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]

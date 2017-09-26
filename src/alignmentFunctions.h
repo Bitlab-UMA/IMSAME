@@ -35,6 +35,7 @@ typedef struct {
     pthread_mutex_t * lock;
     unsigned char full_comp; // Tells whether read reporting should stop at first match or keep reporting
     unsigned char * markers; // To tell which sequences were already used
+    Mempool_l ** mp_pools; // All memory pools
 } HashTableArgs;
 
 
@@ -54,7 +55,7 @@ void init_mem_pool_llpos(Mempool_l * mp);
  * Get a new memory address from the pool mp for a type llpos
  * 
  */
-llpos * getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used);
+uint64_t getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used);
 
 /*
     Load input database using 4 threads
