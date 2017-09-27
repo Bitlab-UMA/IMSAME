@@ -267,6 +267,7 @@ int main(int argc, char ** av){
         args_DB_load[i].t_len = db_temp_size;
         args_DB_load[i].word_size = custom_kmer;
         args_DB_load[i].mp = mp[i];
+        args_DB_load[i].offloaded = 0;
         
         if( 0 != (error = pthread_create(&loading_threads[i], NULL, load_input, (void *) (&args_DB_load[i])) )){
             fprintf(stdout, "[@loading] Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
@@ -502,63 +503,87 @@ int main(int argc, char ** av){
     }
     */
     
+    uint64_t idx_tablespaces = 0; // Indexes for loading the data tables
     
 
+    Container * ptr_table_redirect[4];
+    ptr_table_redirect[0] = hta->container_a;
+    ptr_table_redirect[1] = hta->container_b;
+    ptr_table_redirect[2] = hta->container_c;
+    ptr_table_redirect[3] = hta->container_d;
 
-    for(i=0;i<n_threads;i++){
-        hta[i].id = i;
-        hta[i].database = &final_db;
-        hta[i].query = &data_query;
-        
-        //hta[i].from = i * reads_per_thread;
-        //hta[i].to = (i + 1) * reads_per_thread;
-        hta[i].container_a = ct_A;
-        hta[i].container_b = ct_B;
-        hta[i].container_c = ct_C;
-        hta[i].container_d = ct_D;
-        hta[i].contained_reads = contained_reads;
-        hta[i].base_coordinates = base_coordinates;
-        hta[i].accepted_query_reads = 0;
-        hta[i].min_e_value = minevalue;
-        hta[i].min_coverage = mincoverage;
-        hta[i].min_identity = minidentity;
-        hta[i].out = out_database;
-        hta[i].igap = igap;
-        hta[i].egap = egap;
-        hta[i].window = window;
-        hta[i].mc = mc[i];
-        hta[i].table = table[i];
-        hta[i].reconstruct_X = reconstruct_X[i];
-        hta[i].reconstruct_Y = reconstruct_Y[i];
-        hta[i].writing_buffer_alignment = writing_buffer_alignment[i];
-        hta[i].my_x = my_x[i];
-        hta[i].my_y = my_y[i];
-        hta[i].queue_head = &queue_head;
-        hta[i].lock = &lock;
-        hta[i].full_comp = full_comp;
-        hta[i].mp_pools = mp;
-        if(full_comp){
-            hta[i].markers = marker_taggs[i];
+    while(idx_tablespaces <= args_DB_load[0].offloaded || idx_tablespaces <= args_DB_load[1].offloaded || idx_tablespaces <= args_DB_load[2].offloaded || idx_tablespaces <= args_DB_load[3].offloaded){
+        for(i=0;i<n_threads;i++){
+            hta[i].id = i;
+            hta[i].database = &final_db;
+            hta[i].query = &data_query;
+            
+            
+            // The appropriate data table and container must be loaded
+            char read_name[MAXPATH]; read_name[0] = '\0';
+            for(j=0; j<FIXED_LOADING_THREADS; j++){
+                sprintf(&read_name[0], "tablespace-%c-%"PRIu64, args_DB_load[j].thread_id, idx_tablespaces);
+                FILE * tablespace_handler = fopen(read_name, "rb");
+                if(tablespace_handler == NULL){ fprintf(stdout, "At %s\n", read_name); terror("Could not open tablespace"); } 
+                
+
+                fclose(tablespace_handler);
+
+            }
+            
+
+            hta[i].container_a = ct_A;
+            hta[i].container_b = ct_B;
+            hta[i].container_c = ct_C;
+            hta[i].container_d = ct_D;
+            hta[i].contained_reads = contained_reads;
+            hta[i].base_coordinates = base_coordinates;
+            hta[i].accepted_query_reads = 0;
+            hta[i].min_e_value = minevalue;
+            hta[i].min_coverage = mincoverage;
+            hta[i].min_identity = minidentity;
+            hta[i].out = out_database;
+            hta[i].igap = igap;
+            hta[i].egap = egap;
+            hta[i].window = window;
+            hta[i].mc = mc[i];
+            hta[i].table = table[i];
+            hta[i].reconstruct_X = reconstruct_X[i];
+            hta[i].reconstruct_Y = reconstruct_Y[i];
+            hta[i].writing_buffer_alignment = writing_buffer_alignment[i];
+            hta[i].my_x = my_x[i];
+            hta[i].my_y = my_y[i];
+            hta[i].queue_head = &queue_head;
+            hta[i].lock = &lock;
+            hta[i].full_comp = full_comp;
+            hta[i].mp_pools = mp;
+            if(full_comp){
+                hta[i].markers = marker_taggs[i];
+            }
+            if(hits_only) hta[i].hits = hits_table[i]; else hta[i].hits = NULL;
+            
+
+            //if(i==n_threads-1) hta[i].to = data_query.n_seqs;
+
+            if( 0 != (error = pthread_create(&threads[i], NULL, computeAlignmentsByThread, (void *) (&hta[i])) )){
+                fprintf(stdout, "Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
+            }
+
+
+            ++idx_tablespaces;
         }
-        if(hits_only) hta[i].hits = hits_table[i]; else hta[i].hits = NULL;
         
+        //Wait for threads to finish
+        for(i=0;i<n_threads;i++){
+            pthread_join(threads[i], NULL);
+        }
 
-        //if(i==n_threads-1) hta[i].to = data_query.n_seqs;
-
-        if( 0 != (error = pthread_create(&threads[i], NULL, computeAlignmentsByThread, (void *) (&hta[i])) )){
-            fprintf(stdout, "Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
+        
+        for(i=0;i<n_threads;i++){
+            sum_accepted_reads += hta[i].accepted_query_reads;
         }
     }
     
-    //Wait for threads to finish
-    for(i=0;i<n_threads;i++){
-        pthread_join(threads[i], NULL);
-    }
-
-    
-    for(i=0;i<n_threads;i++){
-        sum_accepted_reads += hta[i].accepted_query_reads;
-    }
     // Accumulate hits just in case
     if(hits_only == TRUE){
         for(i=0;i<full_db_n_seqs;i++){

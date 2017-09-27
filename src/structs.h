@@ -9,6 +9,7 @@
 #define READBUF 500000000 //500MB
 #define INITSEQS 3000 //Number of starting sequences (in database)
 #define POINT 4
+#define MAXPATH 2048
 
 #define FIXED_K 12
 
@@ -83,10 +84,11 @@ typedef struct{
     uint64_t contained_reads;
     uint64_t base_coordinates;
     uint64_t n_allocs;
-    char thread_id;
     Container * ct;
     Mempool_l * mp;
     uint64_t n_pools_used;
+    uint64_t offloaded;
+    char thread_id;
 } LoadingDBArgs;
 
 struct cell{

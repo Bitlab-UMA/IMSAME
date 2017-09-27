@@ -17,12 +17,14 @@ int64_t compare_letters(unsigned char a, unsigned char b){
     return -POINT;
 }
 
+
+
 uint64_t getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
 
-    if(mp[*n_pools_used].current == POOL_SIZE){
+    if(mp[*n_pools_used].current + sizeof(llpos) == POOL_SIZE){
         *n_pools_used += 1;
-        if(*n_pools_used == MAX_MEM_POOLS) terror("Reached max pools");
-        init_mem_pool_llpos(&mp[*n_pools_used]);
+        //init_mem_pool_llpos(&mp[*n_pools_used]);
+        return mp[(*n_pools_used)-1].current++;
         
     }
 
@@ -43,7 +45,7 @@ void init_mem_pool_llpos(Mempool_l * mp){
 void * load_input(void * a){
 
     LoadingDBArgs * ldbargs = (LoadingDBArgs *) a;
-    
+    FILE * disk_offload;
     // Requires
     /*
     char * temp_seq_buffer;
@@ -169,6 +171,7 @@ void * load_input(void * a){
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
                     
+                    uint64_t prior_pools = ldbargs->n_pools_used;
 
                     if(pointer == NULL){
 
@@ -209,8 +212,25 @@ void * load_input(void * a){
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
-    
 
+
+                    if(prior_pools != ldbargs->n_pools_used){
+                        // previous pool is full, write it to disk and reset it
+                        // Only pool 0 is used atm
+                        char write_name[MAXPATH]; write_name[0] = '\0';
+                        sprintf(write_name, "tablespace-%c-%"PRIu64, ldbargs->thread_id, ldbargs->offloaded);
+                        disk_offload = fopen(write_name, "wb");
+                        if(disk_offload == NULL) terror("Could not open temporary file for table space");
+                        // Write both the index table and the memory pool
+                        fwrite(ldbargs->ct->table, sizeof(Container), 1, disk_offload);
+                        fwrite(&ldbargs->mp[prior_pools].base, sizeof(llpos), POOL_SIZE, disk_offload);
+                        ldbargs->offloaded++;
+                        ldbargs->n_pools_used--;
+                        // Reset mempool and table
+                        memset(&ldbargs->mp[prior_pools].base, 0x0, sizeof(llpos) * POOL_SIZE);
+                        memset(&ldbargs->ct->table, 0x0, sizeof(Container));
+                        fclose(disk_offload);
+                    }
                     // CURRENTLY USING OVERLAPPING
                     
                     memcpy(aux_kmer, &curr_kmer[1], custom_kmer-1);
