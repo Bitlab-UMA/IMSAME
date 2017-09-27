@@ -507,10 +507,10 @@ int main(int argc, char ** av){
     
 
     Container * ptr_table_redirect[4];
-    ptr_table_redirect[0] = hta->container_a;
-    ptr_table_redirect[1] = hta->container_b;
-    ptr_table_redirect[2] = hta->container_c;
-    ptr_table_redirect[3] = hta->container_d;
+    ptr_table_redirect[0] = ct_A;
+    ptr_table_redirect[1] = ct_B;
+    ptr_table_redirect[2] = ct_C;
+    ptr_table_redirect[3] = ct_D;
 
     while(idx_tablespaces <= args_DB_load[0].offloaded || idx_tablespaces <= args_DB_load[1].offloaded || idx_tablespaces <= args_DB_load[2].offloaded || idx_tablespaces <= args_DB_load[3].offloaded){
         for(i=0;i<n_threads;i++){
@@ -526,6 +526,11 @@ int main(int argc, char ** av){
                 FILE * tablespace_handler = fopen(read_name, "rb");
                 if(tablespace_handler == NULL){ fprintf(stdout, "At %s\n", read_name); terror("Could not open tablespace"); } 
                 
+                // Read container
+                if(sizeof(Container) != fread(ptr_table_redirect[j], sizeof(Container), 1, tablespace_handler)) terror("Incorrect size for container at reloading");
+                // Read Mempool 
+                if(sizeof(llpos)*POOL_SIZE != fread(&mp[j][0].base[0], sizeof(llpos), POOL_SIZE, tablespace_handler)) terror("Incorrect size of mempool at reloading");
+
 
                 fclose(tablespace_handler);
 
@@ -538,7 +543,7 @@ int main(int argc, char ** av){
             hta[i].container_d = ct_D;
             hta[i].contained_reads = contained_reads;
             hta[i].base_coordinates = base_coordinates;
-            hta[i].accepted_query_reads = 0;
+            if(idx_tablespaces == 0) hta[i].accepted_query_reads = 0;
             hta[i].min_e_value = minevalue;
             hta[i].min_coverage = mincoverage;
             hta[i].min_identity = minidentity;
