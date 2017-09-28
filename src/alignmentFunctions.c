@@ -21,10 +21,12 @@ int64_t compare_letters(unsigned char a, unsigned char b){
 
 uint64_t getNewLocationllpos(Mempool_l * mp, uint64_t * n_pools_used){
 
-    if(mp[*n_pools_used].current + sizeof(llpos) == POOL_SIZE){
+    if(mp[*n_pools_used].current == POOL_SIZE-1){ // Minus one so we can write and then switch pool
         *n_pools_used += 1;
         //init_mem_pool_llpos(&mp[*n_pools_used]);
-        return mp[(*n_pools_used)-1].current++;
+        uint64_t current = mp[*n_pools_used].current;
+        mp[*n_pools_used-1].current = 0;
+        return current;
         
     }
 
@@ -94,7 +96,7 @@ void * load_input(void * a){
     while(ldbargs->temp_seq_buffer[c_pos] != '>') ++c_pos;
     ldbargs->read_from = c_pos;
     c_pos = ldbargs->read_to;
-    while(ldbargs->temp_seq_buffer[c_pos] != '>' && c_pos < ldbargs->t_len) ++c_pos;
+    while(c_pos < ldbargs->t_len && ldbargs->temp_seq_buffer[c_pos] != '>') ++c_pos;
     ldbargs->read_to = c_pos;
 
     c_pos = ldbargs->read_from;
@@ -176,14 +178,16 @@ void * load_input(void * a){
                     if(pointer == NULL){
 
                         uint64_t m_pos = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
-                        pointer = (llpos *) (ldbargs->mp[ldbargs->n_pools_used].base + m_pos);
+                        //if(ldbargs->thread_id == 'A') printf("BASE: %p, OFF: %"PRIu64" is %p\n", ldbargs->mp[prior_pools].base, m_pos, (llpos *) (ldbargs->mp[prior_pools].base + m_pos));
+                        //printf("Using %"PRIu64" with PRIOR: %"PRIu64", NPOOLSUSED: %"PRIu64"\n", m_pos, prior_pools, ldbargs->n_pools_used);
+                        pointer = (llpos *) (ldbargs->mp[prior_pools].base + m_pos);
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
                         pointer->s_id = curr_seq-1;
                         pointer->mem_pos = m_pos;
                         pointer->next_mem_pos = -1;
                         pointer->next_pool_id = -1;
-                        pointer->pool_id = ldbargs->n_pools_used;
+                        pointer->pool_id = prior_pools;
 
                     
 
@@ -196,15 +200,17 @@ void * load_input(void * a){
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
                         uint64_t m_pos = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
-                        pointer = (llpos *) (ldbargs->mp[ldbargs->n_pools_used].base + m_pos);
+                        //if(ldbargs->thread_id == 'A') printf("BASE: %p, OFF: %"PRIu64" is %p\n", ldbargs->mp[prior_pools].base, m_pos, (llpos *) (ldbargs->mp[prior_pools].base + m_pos));
+                        pointer = (llpos *) (ldbargs->mp[prior_pools].base + m_pos);
+                        //printf("Using %"PRIu64" with PRIOR: %"PRIu64", NPOOLSUSED: %"PRIu64"\n", m_pos, prior_pools, ldbargs->n_pools_used);
 
                         pointer->pos = pos_in_database;
                         pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
                         pointer->s_id = curr_seq-1;
                         pointer->mem_pos = m_pos;
-                        pointer->next_mem_pos = aux->mem_pos;
+                        pointer->next_mem_pos = (int64_t) aux->mem_pos;
                         pointer->next_pool_id = (int64_t) aux->pool_id;
-                        pointer->pool_id = ldbargs->n_pools_used;
+                        pointer->pool_id = prior_pools;
 
                     }
 
@@ -217,18 +223,22 @@ void * load_input(void * a){
                     if(prior_pools != ldbargs->n_pools_used){
                         // previous pool is full, write it to disk and reset it
                         // Only pool 0 is used atm
+                        
+                        
                         char write_name[MAXPATH]; write_name[0] = '\0';
-                        sprintf(write_name, "tablespace-%c-%"PRIu64, ldbargs->thread_id, ldbargs->offloaded);
+                        sprintf(write_name, "intermediate/tablespace-%c-%"PRIu64, ldbargs->thread_id, ldbargs->offloaded);
                         disk_offload = fopen(write_name, "wb");
+                        fprintf(stdout, "[INFO] Thread %c wrote pool %s\n", ldbargs->thread_id, write_name);
                         if(disk_offload == NULL) terror("Could not open temporary file for table space");
                         // Write both the index table and the memory pool
                         fwrite(ldbargs->ct->table, sizeof(Container), 1, disk_offload);
-                        fwrite(&ldbargs->mp[prior_pools].base, sizeof(llpos), POOL_SIZE, disk_offload);
+                        fwrite(ldbargs->mp[prior_pools].base, sizeof(llpos), POOL_SIZE, disk_offload);
                         ldbargs->offloaded++;
-                        ldbargs->n_pools_used--;
+                        ldbargs->n_pools_used = 0;
                         // Reset mempool and table
-                        memset(&ldbargs->mp[prior_pools].base, 0x0, sizeof(llpos) * POOL_SIZE);
-                        memset(&ldbargs->ct->table, 0x0, sizeof(Container));
+                        memset(&ldbargs->mp[prior_pools].base[0], 0x0, sizeof(llpos) * POOL_SIZE);
+                        memset(ldbargs->ct->table, 0x0, sizeof(Container));
+                        prior_pools = 0;
                         fclose(disk_offload);
                     }
                     // CURRENTLY USING OVERLAPPING
@@ -274,6 +284,24 @@ void * load_input(void * a){
     ldbargs->contained_reads = curr_seq;
     ldbargs->data_database->n_seqs = curr_seq;
     ldbargs->base_coordinates = pos_in_database;
+
+    // And write last pool
+    char write_name[MAXPATH]; write_name[0] = '\0';
+    sprintf(write_name, "intermediate/tablespace-%c-%"PRIu64, ldbargs->thread_id, ldbargs->offloaded);
+    disk_offload = fopen(write_name, "wb");
+    if(disk_offload == NULL) terror("Could not open temporary file for table space");
+    fprintf(stdout, "[INFO] Thread %c wrote pool %s\n", ldbargs->thread_id, write_name);
+    // Write both the index table and the memory pool
+    fwrite(ldbargs->ct->table, sizeof(Container), 1, disk_offload);
+    fwrite(ldbargs->mp[0].base, sizeof(llpos), POOL_SIZE, disk_offload);
+    ldbargs->offloaded++;
+    ldbargs->n_pools_used = 0;
+    // Reset mempool and table
+    memset(&ldbargs->mp[0].base[0], 0x0, sizeof(llpos) * POOL_SIZE);
+    memset(ldbargs->ct->table, 0x0, sizeof(Container));
+    fclose(disk_offload);
+
+
     return NULL;
 }
 
@@ -626,7 +654,7 @@ typedef struct {
                         //If is good
                         if(((long double)(ba.length-(ba.igaps+ba.egaps))/ylen) >= hta->min_coverage && ((long double)ba.identities/(ba.length-(ba.igaps+ba.egaps))) >=  hta->min_identity){
                             if(already_aligned == FALSE){
-                                hta->accepted_query_reads++;
+                                hta->accepted_query_reads[curr_read] = TRUE;
                                 already_aligned = TRUE;
                                 //printf("accepted: %"PRIu64"\n", hta->accepted_query_reads);
                             }

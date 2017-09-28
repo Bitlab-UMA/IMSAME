@@ -17,6 +17,9 @@ USAGE       Usage is described by calling ./IMSAME --help
 #include <string.h>
 #include <ctype.h>
 #include <pthread.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "structs.h"
 #include "alignmentFunctions.h"
 #include "commonFunctions.h"
@@ -60,6 +63,9 @@ int main(int argc, char ** av){
     
     //uint64_t reads_per_thread;
     uint64_t sum_accepted_reads = 0;
+
+    // Create intermediary files directory
+    mkdir("intermediate", 0700);
 
     begin = clock();
 
@@ -493,6 +499,8 @@ int main(int argc, char ** av){
         free(data_database[i].sequences);
         free(data_database[i].start_pos);
     }
+
+    
     
 
     // Debug
@@ -512,38 +520,45 @@ int main(int argc, char ** av){
     ptr_table_redirect[2] = ct_C;
     ptr_table_redirect[3] = ct_D;
 
-    while(idx_tablespaces <= args_DB_load[0].offloaded || idx_tablespaces <= args_DB_load[1].offloaded || idx_tablespaces <= args_DB_load[2].offloaded || idx_tablespaces <= args_DB_load[3].offloaded){
+    unsigned char * accepted_query_reads = (unsigned char *) calloc(data_query.n_seqs, sizeof(unsigned char));
+    if(accepted_query_reads == NULL) terror("Could not allocate vector of accepted reads");
+
+
+    while(idx_tablespaces < args_DB_load[0].offloaded || idx_tablespaces < args_DB_load[1].offloaded || idx_tablespaces < args_DB_load[2].offloaded || idx_tablespaces < args_DB_load[3].offloaded){
+
+        // The appropriate data table and container must be loaded
+        char read_name[MAXPATH]; read_name[0] = '\0';
+        for(j=0; j<FIXED_LOADING_THREADS; j++){
+            sprintf(&read_name[0], "intermediate/tablespace-%c-%"PRIu64, args_DB_load[j].thread_id, idx_tablespaces);
+            FILE * tablespace_handler = fopen(read_name, "rb");
+            if(tablespace_handler == NULL){
+                // This means there are no more tablespaces for this thread, memset to zero and let all null
+                memset(&mp[j][0].base[0], 0x0, sizeof(llpos) * POOL_SIZE);
+                memset(ptr_table_redirect[j], 0x0, sizeof(Container));
+            }else{
+                // Read container
+                uint64_t size;
+                if(1 != (size = fread(ptr_table_redirect[j], sizeof(Container), 1, tablespace_handler))) { printf("Read %"PRIu64" bytes @\n", size); terror("Incorrect size for container at reloading"); }
+                // Read Mempool 
+                if(POOL_SIZE != (size = fread(&mp[j][0].base[0], sizeof(llpos), POOL_SIZE, tablespace_handler))) { printf("Read %"PRIu64" bytes @\n", size); terror("Incorrect size of mempool at reloading"); }
+                fclose(tablespace_handler);
+            } 
+            
+
+        }
+
+
         for(i=0;i<n_threads;i++){
             hta[i].id = i;
             hta[i].database = &final_db;
             hta[i].query = &data_query;
-            
-            
-            // The appropriate data table and container must be loaded
-            char read_name[MAXPATH]; read_name[0] = '\0';
-            for(j=0; j<FIXED_LOADING_THREADS; j++){
-                sprintf(&read_name[0], "tablespace-%c-%"PRIu64, args_DB_load[j].thread_id, idx_tablespaces);
-                FILE * tablespace_handler = fopen(read_name, "rb");
-                if(tablespace_handler == NULL){ fprintf(stdout, "At %s\n", read_name); terror("Could not open tablespace"); } 
-                
-                // Read container
-                if(sizeof(Container) != fread(ptr_table_redirect[j], sizeof(Container), 1, tablespace_handler)) terror("Incorrect size for container at reloading");
-                // Read Mempool 
-                if(sizeof(llpos)*POOL_SIZE != fread(&mp[j][0].base[0], sizeof(llpos), POOL_SIZE, tablespace_handler)) terror("Incorrect size of mempool at reloading");
-
-
-                fclose(tablespace_handler);
-
-            }
-            
-
             hta[i].container_a = ct_A;
             hta[i].container_b = ct_B;
             hta[i].container_c = ct_C;
             hta[i].container_d = ct_D;
             hta[i].contained_reads = contained_reads;
             hta[i].base_coordinates = base_coordinates;
-            if(idx_tablespaces == 0) hta[i].accepted_query_reads = 0;
+            hta[i].accepted_query_reads = accepted_query_reads;
             hta[i].min_e_value = minevalue;
             hta[i].min_coverage = mincoverage;
             hta[i].min_identity = minidentity;
@@ -574,6 +589,8 @@ int main(int argc, char ** av){
                 fprintf(stdout, "Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
             }
 
+            queue_head.head = first_task;
+
 
             ++idx_tablespaces;
         }
@@ -584,9 +601,10 @@ int main(int argc, char ** av){
         }
 
         
-        for(i=0;i<n_threads;i++){
-            sum_accepted_reads += hta[i].accepted_query_reads;
-        }
+        
+    }
+    for(i=0;i<data_query.n_seqs;i++){
+            if(accepted_query_reads[i] == TRUE) ++sum_accepted_reads;
     }
     
     // Accumulate hits just in case
@@ -639,7 +657,7 @@ int main(int argc, char ** av){
     free(threads);
     free(hta);
 
-    
+    free(accepted_query_reads);
     
     for(i=0;i<n_threads;i++){
         

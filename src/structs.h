@@ -18,7 +18,7 @@
 #define MAX_READ_SIZE 10000 //Maximum length of read to have a portion of the table allocated
 #define MAX_WINDOW_SIZE 1000 //Maximum window length to explore NW table
 //#define POOL_SIZE 2500000000 // by 16 bytes it is 40 GB
-#define POOL_SIZE 12500000 // 1 GB if 16 bytes
+#define POOL_SIZE 20500000 // 1GB if 48 bytes
 #define MAX_MEM_POOLS 128 
 #define FIXED_LOADING_THREADS 4
 
