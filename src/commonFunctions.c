@@ -170,9 +170,11 @@ Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, 
     uint64_t pieces = t_reads/levels;
     uint64_t from, to, t_queues = 0, current_queue = 0;
     for(i=0;i<levels;i++) t_queues += ((i+1)*n_threads);
+    if(t_queues > t_reads) t_queues = t_reads;
     Queue * queues = (Queue *) malloc(t_queues * sizeof(Queue));
     if(queues == NULL) terror("Could not allocate queue tasks");
     queue_head->head = &queues[0];
+
     
     for(i=0;i<levels;i++){
 
@@ -185,6 +187,11 @@ Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, 
             to = (j + 1) * reads_per_thread + (pieces*i);
             
             if(j == (i+1)*n_threads - 1) to = pieces*(i+1);
+		
+	    if(from >= t_reads){
+		    queues[current_queue-1].next = NULL;
+                    return &queues[0];
+            }
 
 
             if(i == levels - 1 && j == (i+1)*n_threads - 1){
@@ -197,7 +204,7 @@ Queue * generate_queue(Head * queue_head, uint64_t t_reads, uint64_t n_threads, 
             
 
             queues[current_queue].r1 = from;
-            queues[current_queue].r2 = to;
+            queues[current_queue].r2 = (to <= t_reads) ? (to) : (t_reads);
             current_queue++;
             //printf("current_piece: %"PRIu64"-%"PRIu64" diff: %"PRIu64"\n", from, to, to - from);
 
