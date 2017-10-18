@@ -60,9 +60,8 @@ int main(int ac, char** av) {
 	for(i=nR-1; i>=0; i--){
 		fseek(fIn, offset[i], SEEK_SET);
 		//READ and write header
-		if(fgets(seq, READINPUT, fIn)==NULL){
-			terror("Empty file");
-		}
+		fgets(seq, READINPUT, fIn);
+		
 		fprintf(fOut, "%s", seq);
 		//READ and write sequence
 		c = fgetc(fIn);
