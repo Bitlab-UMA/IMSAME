@@ -92,7 +92,7 @@ void * load_input(void * a){
     while(ldbargs->temp_seq_buffer[c_pos] != '>') ++c_pos;
     ldbargs->read_from = c_pos;
     c_pos = ldbargs->read_to;
-    while(ldbargs->temp_seq_buffer[c_pos] != '>' && c_pos < ldbargs->t_len) ++c_pos;
+    while(c_pos < ldbargs->t_len && ldbargs->temp_seq_buffer[c_pos] != '>') ++c_pos;
     ldbargs->read_to = c_pos;
 
     c_pos = ldbargs->read_from;
