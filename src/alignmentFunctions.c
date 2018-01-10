@@ -332,7 +332,7 @@ typedef struct {
         alignments_tried = 0;
 
         ba.identities = 0; ba.length = 0; ba.igaps = 0xFFFFFFFFFFFFFFFF; ba.egaps = 0xFFFFFFFFFFFFFFFF;
-        if(hta->full_comp == TRUE) memset(&hta->markers[0], 0, hta->database->n_seqs); // Reset used tags
+        memset(&hta->markers[0], 0, hta->database->n_seqs); // Reset used tags
         already_aligned = FALSE;
 
         //Set current header position at the position of the read start (the ">")
@@ -367,7 +367,7 @@ typedef struct {
                 qf.t_len = 0;
 
                 //if(hta->full_comp == TRUE) memset(&hta->markers[my_current_task->r1], 0, my_current_task->r2 - my_current_task->r1 + 1); // Reset used tags
-                if(hta->full_comp == TRUE) memset(&hta->markers[0], FALSE, hta->database->n_seqs); // Reset used tags
+                memset(&hta->markers[0], FALSE, hta->database->n_seqs); // Reset used tags
                 
                 curr_read++;
                 //printf("On current read %"PRIu64"\n", curr_read);
@@ -436,7 +436,7 @@ typedef struct {
 
                 
 
-                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
+                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0 && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
 
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
@@ -492,7 +492,7 @@ typedef struct {
                         */
                         //printf("prev_diag: %"PRId64"- currdiag: %"PRId64"\n", last_diagonal, curr_diagonal);
                         //printf("\t covers to [%"PRIu64"+%"PRIu64"=%"PRIu64"] [%"PRIu64"] \n", qf.x_start, qf.t_len, qf.x_start+qf.t_len, pos_of_hit); getchar();
-                        if(hta->full_comp == FALSE || (hta->full_comp == TRUE && hta->markers[curr_db_seq] == FALSE)){
+                        if(hta->markers[curr_db_seq] == FALSE){
 
                             //if(current_table > 0) getchar();
                             alignmentFromQuickHits(hta->database, hta->query, pos_of_hit, curr_pos+1, curr_read, curr_db_seq, &qf, hta->contained_reads[current_table], hta->base_coordinates[current_table]);
@@ -588,7 +588,7 @@ typedef struct {
                         build_alignment(hta->reconstruct_X, hta->reconstruct_Y, curr_db_seq, curr_read, hta, hta->my_x, hta->my_y, hta->table, hta->mc, hta->writing_buffer_alignment, &ba, xlen, ylen, cell_path_y, &hta->window);
                         
                         // Set the read to already aligned so that it does not repeat
-                        if(hta->full_comp == TRUE) hta->markers[curr_db_seq] = 1;
+                        hta->markers[curr_db_seq] = 1;
                         
                         #ifdef VERBOSE
                         printf("len 1 %"PRIu64", len 2 %"PRIu64"\n", ba.length, ylen);
@@ -603,7 +603,7 @@ typedef struct {
                                 //printf("accepted: %"PRIu64"\n", hta->accepted_query_reads);
                             }
                             
-                            if(hta->full_comp == TRUE) hta->markers[curr_db_seq] = 1;
+                            hta->markers[curr_db_seq] = 1;
                             if(hta->out != NULL){
                                 //printf("Last was: (%"PRIu64", %"PRIu64")\n", curr_read, curr_db_seq);
                                 fprintf(hta->out, "(%"PRIu64", %"PRIu64") : %d%% %d%% %"PRIu64"\n $$$$$$$ \n", curr_read, curr_db_seq, MIN(100,(int)(100*(ba.length-(ba.igaps+ba.egaps))/ylen)), MIN(100,(int)((long double)100*ba.identities/(ba.length-(ba.igaps+ba.egaps)))), ylen);

@@ -300,14 +300,13 @@ int main(int argc, char ** av){
     //close database
     fclose(database);
 
-    // If FULL comparison is performed, allocate memory for the marker taggs
-    if(full_comp == TRUE){
-        marker_taggs = (unsigned char **) malloc(n_threads * sizeof(unsigned char *));
-        if(marker_taggs == NULL) terror("Could not allocate marker taggs");
-        for(i=0;i<n_threads;i++){
-            marker_taggs[i] = (unsigned char *) malloc(full_db_n_seqs);
-            if(marker_taggs[i] == NULL) terror("Could not allocate second loop of marker taggs");
-        }
+    // Allocate marker tags to avoid repeting computation
+    
+    marker_taggs = (unsigned char **) malloc(n_threads * sizeof(unsigned char *));
+    if(marker_taggs == NULL) terror("Could not allocate marker taggs");
+    for(i=0;i<n_threads;i++){
+        marker_taggs[i] = (unsigned char *) malloc(full_db_n_seqs);
+        if(marker_taggs[i] == NULL) terror("Could not allocate second loop of marker taggs");
     }
     if(hits_only == TRUE){
         hits_table = (uint64_t **) calloc(n_threads, sizeof(uint64_t *));
@@ -536,9 +535,7 @@ int main(int argc, char ** av){
         hta[i].queue_head = &queue_head;
         hta[i].lock = &lock;
         hta[i].full_comp = full_comp;
-        if(full_comp){
-            hta[i].markers = marker_taggs[i];
-        }
+        hta[i].markers = marker_taggs[i];
         if(hits_only) hta[i].hits = hits_table[i]; else hta[i].hits = NULL;
         
 
@@ -625,12 +622,10 @@ int main(int argc, char ** av){
         free(my_y[i]);
         free(writing_buffer_alignment[i]);
 
-        if(full_comp == TRUE){
-            free(marker_taggs[i]);
-        }
+        free(marker_taggs[i]);
         
     }
-    if(full_comp == TRUE) free(marker_taggs);
+    free(marker_taggs);
 
     
     free(table);
