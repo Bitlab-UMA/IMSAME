@@ -67,7 +67,8 @@ void * load_input(void * a){
     char_converter[(unsigned char)'C'] = 1;
     char_converter[(unsigned char)'G'] = 2;
     char_converter[(unsigned char)'T'] = 3;
-    llpos * aux, * pointer;
+    //llpos * aux;
+    AVLTree * pointer;
 
     char c;
 
@@ -163,45 +164,15 @@ void * load_input(void * a){
                     //write to hash table
                     
 		
-                    pointer = ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                    pointer = &ldbargs->ct->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
                     
+                    pointer = insert_AVLTree(pointer, hashOfWord(&curr_kmer[FIXED_K], custom_kmer-FIXED_K), ldbargs->mp_AVL, &ldbargs->n_pools_used_AVL, pos_in_database, ldbargs->mp, &ldbargs->n_pools_used, curr_seq-1);
 
-                    if(pointer == NULL){
 
-                        pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
-                        pointer->pos = pos_in_database;
-                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = curr_seq-1;
-                        pointer->next = NULL;
-
-                    
-
-                    }else{
-
-                        
-                        aux = ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
-                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
-                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
-                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
-
-                        pointer = getNewLocationllpos(ldbargs->mp, &ldbargs->n_pools_used);
-
-                        pointer->pos = pos_in_database;
-                        pointer->extended_hash = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
-                        pointer->s_id = curr_seq-1;
-                        pointer->next = aux;
-
-                    }
-
-                    ldbargs->ct->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
-                        [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
-                        [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
-                        [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]] = pointer;
-    
 
                     // CURRENTLY USING OVERLAPPING
                     
@@ -280,7 +251,7 @@ typedef struct {
     Point p0, p1, p2, p3; //Points for NW anchored
     p0.x = 0; p0.y = 0;
 
-    Container * ptr_table_redirect[4];
+    AVLContainer * ptr_table_redirect[4];
     ptr_table_redirect[0] = hta->container_a;
     ptr_table_redirect[1] = hta->container_b;
     ptr_table_redirect[2] = hta->container_c;
@@ -297,6 +268,7 @@ typedef struct {
     char c;
     unsigned char curr_kmer[custom_kmer], b_aux[custom_kmer];
     llpos * aux;
+    AVLTree * pointer;
 
     // For NW-alignment
     int NWaligned;
@@ -326,6 +298,7 @@ typedef struct {
 
         curr_kmer[0] = '\0'; b_aux[0] = '\0';
         aux = NULL;
+        pointer = NULL;
 
         NWaligned = 0;
         n_hits = 0;
@@ -403,28 +376,28 @@ typedef struct {
                 //fprintf(stdout, "%s\n", curr_kmer);
                 //fflush(stdout);
                 current_table = 0;
-                aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                pointer = &ptr_table_redirect[current_table]->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
 
-                if(aux == NULL){
+                if(pointer == NULL){
                     ++current_table;
-                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                    pointer = &ptr_table_redirect[current_table]->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
                 }
-                if(aux == NULL){
+                if(pointer == NULL){
                     ++current_table;
-                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                    pointer = &ptr_table_redirect[current_table]->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
                 }
-                if(aux == NULL){
+                if(pointer == NULL){
                     ++current_table;
-                    aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                    pointer = &ptr_table_redirect[current_table]->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
@@ -433,10 +406,13 @@ typedef struct {
                 //While there are hits
                 //fprintf(stdout, "%p\n", aux);
                 //fflush(stdout);
-
+                
+                uint64_t hash_forward = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
+                AVLTree * search = find_AVLTree(pointer, hash_forward);
+                if(search != NULL) aux = search->next; else aux = NULL;
                 
 
-                while(aux != NULL && aux->extended_hash == hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K) && ((hta->full_comp == FALSE && NWaligned == 0 && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
+                while(aux != NULL && ((hta->full_comp == FALSE && NWaligned == 0 && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0) || (hta->full_comp && hta->markers[aux->s_id+ hta->contained_reads[current_table]] == 0))){
 
                     n_hits++;
                     //fprintf(stdout, "%p\n", aux);
@@ -446,6 +422,7 @@ typedef struct {
                     //printf("check this woop: %"PRIu64" - %"PRIu64" - %"PRIu64" - %"PRIu64"\n", aux->s_id, hta->contained_reads[current_table], aux->pos, hta->base_coordinates[current_table]);
                     curr_db_seq = aux->s_id + hta->contained_reads[current_table];
                     pos_of_hit = aux->pos + hta->base_coordinates[current_table];
+                    //printf("Pos of hit db: %"PRIu64", seq num %"PRIu64", contained reads: %"PRIu64", contained coord %"PRIu64"\n", pos_of_hit, curr_db_seq, hta->contained_reads[current_table], hta->base_coordinates[current_table]);
                     if(hta->hits != NULL){
                         hta->hits[curr_db_seq]++;
                         goto only_hits; // Count only hits and skip the rest
@@ -630,10 +607,13 @@ typedef struct {
                     aux = aux->next;
                     while(aux == NULL && current_table < FIXED_LOADING_THREADS-1){
                         ++current_table;
-                        aux = ptr_table_redirect[current_table]->table[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
+                        pointer = &ptr_table_redirect[current_table]->root[char_converter[curr_kmer[1]]][char_converter[curr_kmer[2]]][char_converter[curr_kmer[3]]]
                         [char_converter[curr_kmer[4]]][char_converter[curr_kmer[5]]][char_converter[curr_kmer[6]]]
                         [char_converter[curr_kmer[7]]][char_converter[curr_kmer[8]]][char_converter[curr_kmer[9]]]
                         [char_converter[curr_kmer[10]]][char_converter[curr_kmer[11]]];
+                        hash_forward = hashOfWord(&curr_kmer[FIXED_K], custom_kmer - FIXED_K);
+                        search = find_AVLTree(pointer, hash_forward);
+                        if(search != NULL) aux = search->next; else aux = NULL;
                     }
                     //fprintf(stdout, "%p\n", aux);
                     //fflush(stdout);
@@ -1520,4 +1500,219 @@ void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     #ifdef VERBOSE
     printf("hx hy: %"PRIu64", %"PRIu64"\n", head_x, head_y);
     #endif
+}
+
+
+AVLTree * getNewLocationAVLTree(Mempool_AVL * mp, uint64_t * n_pools_used, uint64_t key){
+
+    if(mp[*n_pools_used].current == POOL_SIZE){
+        *n_pools_used += 1;
+        if(*n_pools_used == MAX_MEM_POOLS) terror("Reached max pools");
+        init_mem_pool_AVL(&mp[*n_pools_used]);
+        
+    }
+
+    AVLTree * new_pos = mp[*n_pools_used].base + mp[*n_pools_used].current;
+    mp[*n_pools_used].current++;
+
+    new_pos->key = key;
+    new_pos->count = 1;
+    new_pos->height = 1;
+
+    return new_pos;
+}
+
+void init_mem_pool_AVL(Mempool_AVL * mp){
+    mp->base = (AVLTree *) calloc(POOL_SIZE, sizeof(AVLTree));
+    if(mp->base == NULL) terror("Could not request memory pool");
+    mp->current = 0;
+}
+
+
+
+/*
+// An AVL tree node
+typedef struct AVL_Node{
+    uint64_t key;
+    struct AVL_Node * left;
+    struct AVL_Node * right;
+    uint64_t height;
+    llpos * next;
+} AVLTree;
+*/
+ 
+// A utility function to get height of the tree
+
+uint64_t height(AVLTree * N){
+    if (N == NULL)
+        return 0;
+    return N->height;
+}
+
+/* Substituted by (x == NULL) ? (0) : (x->height) */
+ 
+/* Helper function that allocates a new node with the given key and
+    NULL left and right pointers. */
+
+/* This one is substituted by AVLTree * getNewLocationAVLTree(Mempool_AVL * mp, uint64_t * n_pools_used, uint64_t key) */
+ 
+// A utility function to right rotate subtree rooted with y
+// See the diagram given above.
+AVLTree * right_rotate(AVLTree * y){
+    AVLTree * x = y->left;
+    AVLTree * T2 = x->right;
+ 
+    // Perform rotation
+    x->right = y;
+    y->left = T2;
+ 
+    // Update heights
+    //x->height = MAX((x == NULL) ? (0) : (x->left->height), (x == NULL) ? (0) : (x->right->height))+1;
+    //y->height = MAX((y == NULL) ? (0) : (y->left->height), (y == NULL) ? (0) : (y->right->height))+1;
+    // Update heights
+    y->height = MAX(height(y->left), height(y->right))+1;
+    x->height = MAX(height(x->left), height(x->right))+1;
+ 
+    // Return new root
+    return x;
+}
+ 
+// A utility function to left rotate subtree rooted with x
+// See the diagram given above.
+AVLTree * left_rotate(AVLTree * x){
+    AVLTree * y = x->right;
+    AVLTree * T2 = y->left;
+ 
+    // Perform rotation
+    y->left = x;
+    x->right = T2;
+ 
+    //  Update heights
+    //x->height = MAX((x == NULL) ? (0) : (x->left->height), (x == NULL) ? (0) : (x->right->height))+1;
+    //y->height = MAX((y == NULL) ? (0) : (y->left->height), (y == NULL) ? (0) : (y->right->height))+1;
+    x->height = MAX(height(x->left), height(x->right))+1;
+    y->height = MAX(height(y->left), height(y->right))+1;
+ 
+    // Return new root
+    return y;
+}
+ 
+// Get Balance factor of node N
+
+int64_t get_balance(AVLTree * N){
+    if (N == NULL)
+        return 0;
+    return height(N->left) - height(N->right);
+}
+
+/* Substituted by (node == NULL) ? (0) : ((int64_t) node->left->height - (int64_t) node->right->height) */
+
+AVLTree * find_AVLTree(AVLTree * node, uint64_t key){
+    AVLTree * found = NULL;
+    if(node == NULL) return NULL;
+
+    if (key < node->key) {
+        found = find_AVLTree(node->left, key);
+    } else if (key > node->key) {
+        found = find_AVLTree(node->right, key);
+    } else { 
+        return node;
+    }
+    return found;
+} 
+
+llpos * find_AVLTree_llpos(AVLTree * node, uint64_t key){
+    llpos * aux = NULL;
+    if(node == NULL) return NULL;
+
+    if (key < node->key) {
+        aux = find_AVLTree_llpos(node->left, key);
+    } else if (key > node->key) {
+        aux = find_AVLTree_llpos(node->right, key);
+    } else { 
+        return node->next;
+    }
+    return aux;
+}
+
+// Recursive function to insert key in subtree rooted
+// with node and returns new root of subtree.
+AVLTree * insert_AVLTree(AVLTree * node, uint64_t key, Mempool_AVL * mp, uint64_t * n_pools_used, uint64_t pos, Mempool_l * mp_l, uint64_t * n_pools_used_l, uint64_t s_id){
+    /* 1.  Perform the normal BST insertion */
+    if (node == NULL){
+        
+        AVLTree * n_node = getNewLocationAVLTree(mp, n_pools_used, key);
+        llpos * aux = getNewLocationllpos(mp_l, n_pools_used_l);
+        aux->pos = pos;
+        aux->s_id = s_id;
+        n_node->next = aux;
+        return n_node;
+    }
+ 
+    if (key < node->key) {
+        node->left  = insert_AVLTree(node->left, key, mp, n_pools_used, pos, mp_l, n_pools_used_l, s_id);
+    } else if (key > node->key) {
+        node->right = insert_AVLTree(node->right, key, mp, n_pools_used, pos, mp_l, n_pools_used_l, s_id);
+    } else { 
+        // Equal keys are inserted as a linked list
+        llpos * aux = getNewLocationllpos(mp_l, n_pools_used_l);
+        aux->pos = pos;
+        aux->s_id = s_id;
+        aux->next = node->next;
+        node->next = aux;
+        ++(node->count);
+        return node;
+    }
+ 
+    /* 2. Update height of this ancestor node */
+    //node->height = 1 + MAX((node->left == NULL) ? (0) : (node->left->height), (node->right == NULL) ? (0) : (node->right->height));
+    node->height = 1 + MAX(height(node->left), height(node->right));
+ 
+    /* 3. Get the balance factor of this ancestor
+          node to check whether this node became
+          unbalanced */
+    //int64_t balance = (node->left == NULL || node->right == NULL) ? (0) : ((int64_t) node->left->height - (int64_t) node->right->height);
+    int64_t balance = get_balance(node);
+ 
+    // If this node becomes unbalanced, then
+    // there are 4 cases
+ 
+    // Left Left Case
+    if (balance > 1 && key < node->left->key)
+        return right_rotate(node);
+ 
+    // Right Right Case
+    if (balance < -1 && key > node->right->key)
+        return left_rotate(node);
+ 
+    // Left Right Case
+    if (balance > 1 && key > node->left->key)
+    {
+        node->left =  left_rotate(node->left);
+        return right_rotate(node);
+    }
+ 
+    // Right Left Case
+    if (balance < -1 && key < node->right->key)
+    {
+        node->right = right_rotate(node->right);
+        return left_rotate(node);
+    }
+ 
+    /* return the (unchanged) node pointer */
+    return node;
+}
+ 
+// A utility function to print preorder traversal
+// of the tree.
+// The function also prints height of every node
+
+void pre_order(AVLTree * root){
+    if(root != NULL){
+        printf("%"PRIu64" ", root->key);
+        llpos * aux = root->next;
+        while(aux != NULL){ printf("#%"PRIu64", ", aux->pos); aux = aux->next; }
+        pre_order(root->left);
+        pre_order(root->right);
+    }
 }

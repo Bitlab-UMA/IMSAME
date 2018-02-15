@@ -9,10 +9,10 @@ typedef struct {
     SeqInfo * query;    //Query sequence and lengths
     uint64_t from;      //Starting READ to compute alignments from
     uint64_t to;        //End READ to compute alignments from
-    Container * container_a; //Container to hold the multidimensional array
-    Container * container_b; //Container to hold the multidimensional array
-    Container * container_c; //Container to hold the multidimensional array
-    Container * container_d; //Container to hold the multidimensional array
+    AVLContainer * container_a; //Container to hold the multidimensional array
+    AVLContainer * container_b; //Container to hold the multidimensional array
+    AVLContainer * container_c; //Container to hold the multidimensional array
+    AVLContainer * container_d; //Container to hold the multidimensional array
     uint64_t * contained_reads;
     uint64_t * base_coordinates;
     uint64_t accepted_query_reads; //Number of reads that have a fragment with evalue less than specified
@@ -91,4 +91,46 @@ struct best_cell NW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned 
     Computes the alignment given a NW table
 */
 void backtrackingNW(unsigned char * X, uint64_t Xstart, uint64_t Xend, unsigned char * Y, uint64_t Ystart, uint64_t Yend, struct cell ** table, char * rec_X, char * rec_Y, struct best_cell * bc, uint64_t * ret_head_x, uint64_t * ret_head_y, BasicAlignment * ba, int64_t * cell_path_y, uint64_t window_size);
+
+/*
+    Get memory for a new AVL tree node
+*/
+AVLTree * getNewLocationAVLTree(Mempool_AVL * mp, uint64_t * n_pools_used, uint64_t key);
+
+/*
+    Initialize a memory pool for AVL trees
+*/
+void init_mem_pool_AVL(Mempool_AVL * mp);
+
+/*
+    Right rotate an AVL tree to make it balanced
+*/
+AVLTree * right_rotate(AVLTree * y);
+
+/*
+    Left rotate an AVL tree to make it balanced
+*/
+AVLTree * left_rotate(AVLTree * x);
+
+
+/*
+    Find a key in an AVL tree
+*/
+AVLTree * find_AVLTree(AVLTree * node, uint64_t key);
+
+/*
+    Find a key in an AVL tree but return its hit list
+*/
+llpos * find_AVLTree_llpos(AVLTree * node, uint64_t key);
+
+/*
+    Insert node in AVL tree
+*/
+AVLTree * insert_AVLTree(AVLTree * node, uint64_t key, Mempool_AVL * mp, uint64_t * n_pools_used, uint64_t pos, Mempool_l * mp_l, uint64_t * n_pools_used_l, uint64_t s_id);
+
+/*
+    Traverse AVL tree in pre order
+*/
+void pre_order(AVLTree * root);
+
 

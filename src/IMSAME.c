@@ -153,16 +153,24 @@ int main(int argc, char ** av){
         mp[i] = (Mempool_l *) malloc(MAX_MEM_POOLS*sizeof(Mempool_l));
         if(mp[i] == NULL) terror("Could not allocate individual memory pools");
     }
+
+    Mempool_AVL ** mp_AVL = (Mempool_AVL **) malloc(FIXED_LOADING_THREADS*sizeof(Mempool_AVL *));
+    if(mp_AVL == NULL) terror("Could not allocate memory AVL pools");
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+        mp_AVL[i] = (Mempool_AVL *) malloc(MAX_MEM_POOLS*sizeof(Mempool_AVL));
+        if(mp_AVL[i] == NULL) terror("Could not allocate individual memory AVL pools");
+    }
     
 
-    Container * ct_A = (Container *) calloc(1, sizeof(Container));
+    AVLContainer * ct_A = (AVLContainer *) calloc(1, sizeof(AVLContainer));
     if(ct_A == NULL) terror("Could not allocate container A");
-    Container * ct_B = (Container *) calloc(1, sizeof(Container));
+    AVLContainer * ct_B = (AVLContainer *) calloc(1, sizeof(AVLContainer));
     if(ct_B == NULL)    terror("Could not allocate container B");
-    Container * ct_C = (Container *) calloc(1, sizeof(Container));
+    AVLContainer * ct_C = (AVLContainer *) calloc(1, sizeof(AVLContainer));
     if(ct_C == NULL) terror("Could not allocate container C");
-    Container * ct_D = (Container *) calloc(1, sizeof(Container));
+    AVLContainer * ct_D = (AVLContainer *) calloc(1, sizeof(AVLContainer));
     if(ct_D == NULL) terror("Could not allocate container D");
+
 
     SeqInfo data_database[FIXED_LOADING_THREADS];
     uint64_t full_db_n_seqs = 0;
@@ -256,7 +264,10 @@ int main(int argc, char ** av){
         
         //To hold all information related to database
         args_DB_load[i].n_pools_used = 0;
+        args_DB_load[i].n_pools_used_AVL = 0;
+
         init_mem_pool_llpos(&mp[i][args_DB_load[i].n_pools_used]);
+        init_mem_pool_AVL(&mp_AVL[i][args_DB_load[i].n_pools_used_AVL]);
 
         data_database[i].start_pos = database_positions[i];
         
@@ -267,6 +278,7 @@ int main(int argc, char ** av){
         args_DB_load[i].t_len = db_temp_size;
         args_DB_load[i].word_size = custom_kmer;
         args_DB_load[i].mp = mp[i];
+        args_DB_load[i].mp_AVL = mp_AVL[i];
         
         if( 0 != (error = pthread_create(&loading_threads[i], NULL, load_input, (void *) (&args_DB_load[i])) )){
             fprintf(stdout, "[@loading] Thread %"PRIu64" returned %d:", i, error); terror("Could not launch");
@@ -495,11 +507,16 @@ int main(int argc, char ** av){
 
     // Debug
     /*
-    for(i=0; i<full_db_n_seqs-1; i++){
-        printf("%"PRIu64" - %"PRIu64"\n", final_db.start_pos[i], final_db.start_pos[i+1]);
-        getchar();
+    uint64_t max = 0;
+    for(i=0; i<full_db_n_seqs-2; i++){
+        //printf("%"PRIu64" - %"PRIu64" res in \n", final_db.start_pos[i], final_db.start_pos[i+1]);
+        //printf("%"PRIu64"\n", final_db.start_pos[i+2] - final_db.start_pos[i+1]);
+        if(final_db.start_pos[i+2] - final_db.start_pos[i+1] > max) max = final_db.start_pos[i+2] - final_db.start_pos[i+1];
+        //getchar();
     }
+    printf("%"PRIu64"\n", max);
     */
+    
     
     
 
@@ -597,10 +614,10 @@ int main(int argc, char ** av){
     free(final_db.start_pos);
     free(data_query.sequences);
     free(data_query.start_pos);
-    free(ct_A->table);
-    free(ct_B->table);
-    free(ct_C->table);
-    free(ct_D->table);
+    free(ct_A->root);
+    free(ct_B->root);
+    free(ct_C->root);
+    free(ct_D->root);
     //free(ct);
     free(threads);
     free(hta);
@@ -646,7 +663,14 @@ int main(int argc, char ** av){
         }
         free(mp[i]);
     }
+    for(i=0; i<FIXED_LOADING_THREADS; i++){
+        for(j=0;j<=args_DB_load[i].n_pools_used_AVL;j++){
+            free(mp_AVL[i][j].base);
+        }
+        free(mp_AVL[i]);
+    }
     free(mp);
+    free(mp_AVL);
     free(seq_vector_database);
     free(database_positions);
     

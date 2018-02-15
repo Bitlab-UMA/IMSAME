@@ -32,15 +32,30 @@ typedef char _vector_char __attribute__ ((vector_size (32*sizeof(char))));
 typedef struct linked_list_pos{
     uint64_t pos;
     uint64_t s_id;
-    uint64_t extended_hash;
+    //uint64_t extended_hash;
     struct linked_list_pos * next;
 } llpos;
+
+typedef struct AVL_Node{
+    uint64_t key;
+    struct AVL_Node * left;
+    struct AVL_Node * right;
+    uint64_t height;
+    uint64_t count;
+    llpos * next;
+} AVLTree;
 
 //Struct for memory pool por lists
 typedef struct mempool_l{
     llpos * base;
     uint64_t current;
 } Mempool_l;
+
+//Struct for memory pool por AVLtree
+typedef struct mempool_AVL{
+    AVLTree * base;
+    uint64_t current;
+} Mempool_AVL;
 
 
 //Struct for a whole sequence(s) data
@@ -69,6 +84,10 @@ typedef struct container{
     llpos * table[4][4][4][4][4][4][4][4][4][4][4]; // One reduced; A,C,G,T tables in use
 } Container;
 
+typedef struct AVLcontainer{
+    AVLTree root[4][4][4][4][4][4][4][4][4][4][4];
+} AVLContainer;
+
 typedef struct{
     char * temp_seq_buffer;
     SeqInfo * data_database;
@@ -80,9 +99,11 @@ typedef struct{
     uint64_t base_coordinates;
     uint64_t n_allocs;
     char thread_id;
-    Container * ct;
+    AVLContainer * ct;
     Mempool_l * mp;
     uint64_t n_pools_used;
+    uint64_t n_pools_used_AVL;
+    Mempool_AVL * mp_AVL;
 } LoadingDBArgs;
 
 struct cell{
